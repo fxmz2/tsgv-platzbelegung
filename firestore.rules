@@ -9,16 +9,13 @@ service cloud.firestore {
     // ► E-Mail-Adresse(n) des ersten Admins – klein geschrieben, identisch zu CONFIG.adminEmails
     function bootstrapAdmins() { return ['munzfelix2@gmail.com']; }
 
-    // ► Mannschaften, die ohne Freigabe buchen dürfen – identisch zu CONFIG.directBookTeams
-    function directTeams() { return ['aktive']; }
-
     function signedIn()    { return request.auth != null; }
     function profilePath() { return /databases/$(database)/documents/users/$(request.auth.uid); }
     function hasProfile()  { return signedIn() && exists(profilePath()); }
     function me()          { return get(profilePath()).data; }
     function isAdmin()     { return hasProfile() && me().role == 'admin'; }
-    function isMember()    { return hasProfile() && me().role in ['admin', 'trainer', 'viewer']; }
-    function isTrainerFor(t) { return hasProfile() && me().role == 'trainer' && t in me().teams; }
+    function isMember()    { return hasProfile() && me().role in ['admin', 'trainer', 'trainer_direct', 'viewer']; }
+    function isTrainerFor(t) { return hasProfile() && me().role in ['trainer', 'trainer_direct'] && t in me().teams; }
 
     // Nutzerprofile: jeder legt sich beim ersten Login selbst als "pending" an,
     // nur Admins vergeben Rollen und Mannschaften.
@@ -37,15 +34,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Buchungen: Mitglieder sehen alles. Trainer buchen nur für ihre Mannschaften –
-    // direkt bestätigt nur für directTeams(), sonst als Anfrage. Bestätigen/Ablehnen nur Admin.
+    // Buchungen: Mitglieder sehen alles. Trainer buchen nur für ihre zugeordneten Mannschaften.
+    // "trainer_direct" (Trainer Aktive) trägt direkt bestätigt ein, "trainer" (Trainer/Betreuer)
+    // nur als ausstehend. Bestätigen/Ablehnen nur Admin.
     match /bookings/{id} {
       allow read:   if isMember();
       allow create: if isAdmin() || (
                       isTrainerFor(request.resource.data.team)
                       && request.resource.data.createdBy == request.auth.uid
-                      && ((request.resource.data.team in directTeams() && request.resource.data.status == 'confirmed')
-                          || (!(request.resource.data.team in directTeams()) && request.resource.data.status == 'pending')));
+                      && ((me().role == 'trainer_direct' && request.resource.data.status == 'confirmed')
+                          || (me().role == 'trainer' && request.resource.data.status == 'pending')));
       allow update: if isAdmin();
       allow delete: if isAdmin() || (isMember() && resource.data.createdBy == request.auth.uid);
     }

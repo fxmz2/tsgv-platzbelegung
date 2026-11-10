@@ -8,7 +8,8 @@ Die App ist eine einzige Datei (`index.html`). Ohne Firebase-Daten läuft sie im
 |---|---|
 | **Wartet auf Freigabe** | nichts – jede neue Google-Anmeldung landet hier |
 | **Mitglied** | Plan ansehen |
-| **Trainer** | Plan ansehen + für zugeordnete Mannschaft(en) buchen. Aktive: sofort bestätigt. Jugend/AH/Frauen: Anfrage an Admin |
+| **Trainer Aktive** | Plan ansehen + für zugeordnete Mannschaft(en) buchen – sofort bestätigt |
+| **Trainer / Betreuer** | Plan ansehen + für zugeordnete Mannschaft(en) buchen – erscheint als „ausstehend“, bis ein Admin bestätigt |
 | **Admin** | alles: Rollen & Mannschaften vergeben, Anfragen bestätigen/ablehnen, Platz sperren, jede Buchung löschen, Überschneidungen überschreiben |
 
 Ein Trainer kann mehreren Mannschaften zugeordnet sein. Die Regeln werden serverseitig in Firestore geprüft, nicht nur in der App.
@@ -51,5 +52,5 @@ Danach in Firebase: **Authentication → Einstellungen → Autorisierte Domains 
 - **Platzsperre** (Admin): ganzer Platz oder Hälfte, ganztägig oder Uhrzeit, mehrere Tage. Liegen schon Buchungen darin, kannst du sie direkt absagen – die Trainer sehen sie dann unter „Meine“ als abgelehnt mit Grund.
 - **Zugang entfernen** löscht das Profil; meldet sich die Person erneut an, landet sie wieder bei „Wartet auf Freigabe“.
 - **Kosten**: Für einen Verein bleibt man im kostenlosen Spark-Tarif.
-- **Mannschaften ändern/ergänzen**: in `CONFIG.teams` – und falls eine weitere Mannschaft direkt buchen soll, auch in `directBookTeams` **und** `directTeams()` in den Regeln.
+- **Mannschaften ändern/ergänzen**: in `CONFIG.teams`. Ob jemand direkt buchen darf, hängt an der Rolle (Trainer Aktive vs. Trainer / Betreuer), nicht an der Mannschaft.
 - Doppelbuchungen werden in der App geprüft; ein Trainer, der die App umgeht, könnte technisch trotzdem eine überlappende Buchung für sein Team anlegen. Für einen Vereinsplatz ist das in der Praxis kein Thema – Admins sehen und löschen alles.

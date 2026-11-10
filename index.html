@@ -222,8 +222,6 @@ const CONFIG = {
   // Sichtbarer Zeitraum im Plan (volle Stunden)
   dayStart: 8,
   dayEnd: 23,
-  // Diese Mannschaften buchen ohne Freigabe. Muss zu firestore.rules → directTeams() passen.
-  directBookTeams: ['aktive'],
   teams: [
     { id: 'aktive', name: 'Aktive', color: '#FF5A4E' },
     { id: 'jugend', name: 'Jugend', color: '#3DDC97' },
@@ -265,8 +263,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const rid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
 const team = id => CONFIG.teams.find(t => t.id === id) || { id, name: id || '—', color: '#888' };
 const AREA = { full: 'Ganzer Platz', A: CONFIG.halves.A, B: CONFIG.halves.B };
-const ROLES = { pending: 'Wartet auf Freigabe', viewer: 'Mitglied · nur sehen', trainer: 'Trainer · buchen', admin: 'Admin · alles' };
-const STATUS = { confirmed: 'Bestätigt', pending: 'Anfrage offen', rejected: 'Abgelehnt' };
+const ROLES = { pending: 'Wartet auf Freigabe', viewer: 'Mitglied · nur sehen', trainer: 'Trainer / Betreuer · mit Freigabe', trainer_direct: 'Trainer Aktive · bucht direkt', admin: 'Admin · alles' };
+const TRAINER_ROLES = ['trainer', 'trainer_direct'];
+const STATUS = { confirmed: 'Bestätigt', pending: 'Ausstehend', rejected: 'Abgelehnt' };
 const initials = n => (n || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 const byTime = (a, b) => (a.date + a.start).localeCompare(b.date + b.start);
 
@@ -306,8 +305,9 @@ const S = {
 mq.addEventListener('change', e => { S.wide = e.matches; S.boardScroll = null; render(); });
 
 const isAdmin = () => S.me?.role === 'admin';
-const isMember = () => ['admin', 'trainer', 'viewer'].includes(S.me?.role);
-const bookableTeams = () => isAdmin() ? CONFIG.teams.map(t => t.id) : S.me?.role === 'trainer' ? (S.me.teams || []).filter(id => CONFIG.teams.some(t => t.id === id)) : [];
+const isMember = () => ['admin', 'viewer', ...TRAINER_ROLES].includes(S.me?.role);
+const bookDirect = () => isAdmin() || S.me?.role === 'trainer_direct';
+const bookableTeams = () => isAdmin() ? CONFIG.teams.map(t => t.id) : TRAINER_ROLES.includes(S.me?.role) ? (S.me.teams || []).filter(id => CONFIG.teams.some(t => t.id === id)) : [];
 const canBook = () => bookableTeams().length > 0;
 const lookup = id => S.bookings.find(b => b.id === id) || S.pending.find(b => b.id === id) || S.mine.find(b => b.id === id);
 
@@ -402,7 +402,7 @@ const ICONS = {
 function tabs() {
   const t = [['plan', 'Belegung']];
   if (canBook()) t.push(['mine', 'Meine']);
-  if (isAdmin()) t.push(['requests', 'Anfragen'], ['admin', 'Admin']);
+  if (isAdmin()) t.push(['requests', 'Freigaben'], ['admin', 'Admin']);
   return t;
 }
 function shellHtml() {
@@ -447,7 +447,7 @@ function planHtml() {
     <div class="gutter"><div class="gh"></div><div class="hrs">${hours}</div></div>
     ${shown.map(d => colHtml(d, today, PX)).join('')}
   </div></div>
-  <div class="legend">${CONFIG.teams.map(t => `<span><i style="--c:${t.color}"></i>${esc(t.name)}</span>`).join('')}<span><i class="p"></i>Anfrage</span><span><i class="k"></i>Gesperrt</span></div>`;
+  <div class="legend">${CONFIG.teams.map(t => `<span><i style="--c:${t.color}"></i>${esc(t.name)}</span>`).join('')}<span><i class="p"></i>Ausstehend</span><span><i class="k"></i>Gesperrt</span></div>`;
 }
 function stripHtml(days, today) {
   return `<div class="strip">${days.map((d, i) => {
@@ -471,7 +471,7 @@ function colHtml(d, today, PX) {
       const off = w * Math.min(0.16 + 0.12 * k, 0.5); l += off; w -= off;
     }
     const top = (s - s0) / 60 * PX, h = Math.max((e - s) / 60 * PX - 2, 20), t = team(b.team);
-    return `<button class="ev ${b.status === 'pending' ? 'pending' : ''} ${h < 40 ? 'tight' : ''}" data-act="ev" data-id="${b.id}" style="top:${top + 1}px;height:${h}px;left:calc(${l}% + 2px);width:calc(${w}% - 4px);--c:${t.color}"><b>${esc(t.name)}${b.status === 'pending' ? ' · ?' : ''}</b><span>${esc(b.title || '')}</span><time>${b.start}–${b.end}</time></button>`;
+    return `<button class="ev ${b.status === 'pending' ? 'pending' : ''} ${h < 40 ? 'tight' : ''}" data-act="ev" data-id="${b.id}" style="top:${top + 1}px;height:${h}px;left:calc(${l}% + 2px);width:calc(${w}% - 4px);--c:${t.color}"><b>${esc(t.name)}${b.status === 'pending' ? ' · ausstehend' : ''}</b><span>${esc(b.title || '')}</span><time>${b.start}–${b.end}</time></button>`;
   }).join('');
   const blks = S.blocks.filter(k => blockOn(k, d)).map(k => {
     let [bs, be] = blockTimes(k); bs = Math.max(bs, s0); be = Math.min(be, s1);
@@ -508,8 +508,8 @@ function pendingGroups() {
 const groupItems = k => S.pending.filter(p => (p.seriesId || p.id) === k);
 function requestsHtml() {
   const groups = pendingGroups();
-  if (!groups.length) return `<h2 class="h">Offene Anfragen</h2>${emptyHtml('Alles erledigt', 'Keine offenen Anfragen.')}`;
-  return `<h2 class="h">Offene Anfragen</h2><div class="list">${groups.map(g => {
+  if (!groups.length) return `<h2 class="h">Ausstehend</h2>${emptyHtml('Alles erledigt', 'Nichts zu bestätigen.')}`;
+  return `<h2 class="h">Ausstehend</h2><div class="list">${groups.map(g => {
     const b = g[0], t = team(b.team), k = b.seriesId || b.id;
     const when = g.length > 1 ? `Serie · ${g.length} Termine · ${fmtDate(b.date)} bis ${fmtDate(g.at(-1).date)}` : fmtDate(b.date);
     return `<div class="card stack" style="--c:${t.color}"><div class="crow"><i class="bar"></i><div class="cb">
@@ -541,7 +541,7 @@ function userCard(u) {
     <div class="uhead"><span class="avatar">${avatarInner(u)}</span><div class="un"><b>${esc(u.name)}${self ? ' (du)' : ''}</b><small>${esc(u.email || '')}</small></div></div>
     <div class="urow"><select data-chg="role" data-uid="${u.id}" ${self ? 'disabled' : ''} aria-label="Rolle">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
       ${self ? '' : `<button class="iconbtn danger" data-act="udel" data-uid="${u.id}" aria-label="Zugang entfernen">✕</button>`}</div>
-    ${u.role === 'trainer' ? `<div class="tchips">${CONFIG.teams.map(t => `<button class="tchip ${ts.includes(t.id) ? 'on' : ''}" style="--c:${t.color}" data-act="uteam" data-uid="${u.id}" data-team="${t.id}">${esc(t.name)}</button>`).join('')}</div>
+    ${TRAINER_ROLES.includes(u.role) ? `<div class="tchips">${CONFIG.teams.map(t => `<button class="tchip ${ts.includes(t.id) ? 'on' : ''}" style="--c:${t.color}" data-act="uteam" data-uid="${u.id}" data-team="${t.id}">${esc(t.name)}</button>`).join('')}</div>
       ${ts.length ? '' : `<div class="hint warn">Noch keine Mannschaft zugeordnet – kann nichts buchen.</div>`}` : ''}
   </div>`;
 }
@@ -600,10 +600,10 @@ function openBookingForm(pre = {}) {
 function bfUpdate(f) {
   const fd = new FormData(f), tm = fd.get('team');
   f.querySelector('.until').classList.toggle('hidden', !fd.get('repeat'));
-  const direct = isAdmin() || CONFIG.directBookTeams.includes(tm);
-  $('#bfGo').textContent = !tm ? 'Buchen' : direct ? 'Verbindlich buchen' : 'Anfrage senden';
+  const direct = bookDirect();
+  $('#bfGo').textContent = !tm ? 'Buchen' : direct ? 'Verbindlich buchen' : 'Eintragen (ausstehend)';
   const msgs = [];
-  if (tm) msgs.push(direct ? `<span class="ok">✓ Wird sofort eingetragen.</span>` : `<span class="warn">Geht als Anfrage raus – ein Admin bestätigt.</span>`);
+  if (tm) msgs.push(direct ? `<span class="ok">✓ Wird sofort eingetragen.</span>` : `<span class="warn">Wird als „ausstehend“ eingetragen – ein Admin bestätigt.</span>`);
   const date = fd.get('date'), start = fd.get('start'), end = fd.get('end'), area = fd.get('area');
   if (date && start && end) {
     if (toMin(end) <= toMin(start)) msgs.push(`<span class="bad">Ende muss nach Beginn liegen.</span>`);
@@ -628,7 +628,7 @@ async function submitBooking(f) {
   }
   $('#bfGo').disabled = true;
   const admin = isAdmin();
-  const status = admin || CONFIG.directBookTeams.includes(tm) ? 'confirmed' : 'pending';
+  const status = bookDirect() ? 'confirmed' : 'pending';
   const existing = await S.api.getBookings(dates[0], dates.at(-1));
   const clash = dates.filter(d => findConflicts({ date: d, start, end, area }, existing, S.blocks).length);
   let use = dates;
@@ -650,7 +650,7 @@ async function submitBooking(f) {
   const seriesId = use.length > 1 ? rid() : null;
   await S.api.addBookings(use.map(d => ({ team: tm, title, date: d, start, end, area, note, status, seriesId, createdBy: S.me.id, createdByName: S.me.name || '', createdAt: Date.now() })));
   closeSheet();
-  toast(status === 'confirmed' ? `✓ ${use.length > 1 ? use.length + ' Termine' : 'Termin'} eingetragen` : `Anfrage gesendet – Admin bestätigt`);
+  toast(status === 'confirmed' ? `✓ ${use.length > 1 ? use.length + ' Termine' : 'Termin'} eingetragen` : `Eingetragen als ausstehend – Admin bestätigt`);
 }
 function openBooking(id) {
   const b = lookup(id);
@@ -663,7 +663,7 @@ function openBooking(id) {
     acts.push(`<button class="btn ghost danger block" data-act="reject" data-id="${b.id}">Ablehnen</button>`);
   }
   if (a || own) {
-    acts.push(`<button class="btn ghost danger block" data-act="del" data-id="${b.id}">${b.status === 'pending' && own ? 'Anfrage zurückziehen' : 'Termin löschen'}</button>`);
+    acts.push(`<button class="btn ghost danger block" data-act="del" data-id="${b.id}">${b.status === 'pending' && own ? 'Eintrag zurückziehen' : 'Termin löschen'}</button>`);
     if (b.seriesId) acts.push(`<button class="btn ghost danger block" data-act="delSeries" data-id="${b.id}">Diesen & alle folgenden löschen</button>`);
   }
   sheet(`<div class="form">
@@ -701,11 +701,11 @@ async function approve(items) {
 async function reject(items) {
   items = items.filter(Boolean);
   if (!items.length) return;
-  const c = await ask('Anfrage ablehnen?', items.length > 1 ? `${items.length} Termine der Serie werden abgelehnt.` : `${fmtDate(items[0].date)} · ${items[0].start}–${items[0].end}`, [['yes', 'Ablehnen', 'danger'], ['no', 'Abbrechen', 'ghost']]);
+  const c = await ask('Eintrag ablehnen?', items.length > 1 ? `${items.length} Termine der Serie werden abgelehnt.` : `${fmtDate(items[0].date)} · ${items[0].start}–${items[0].end}`, [['yes', 'Ablehnen', 'danger'], ['no', 'Abbrechen', 'ghost']]);
   if (c !== 'yes') return;
   await S.api.updateBookings(items.map(i => i.id), { status: 'rejected', decidedBy: S.me.name || '', decidedAt: Date.now() });
   closeSheet();
-  toast('Anfrage abgelehnt');
+  toast('Abgelehnt');
 }
 async function delBooking(id, series) {
   const b = lookup(id);
@@ -782,7 +782,7 @@ function openMenu() {
     <div class="sh-head"><h3>Konto</h3><button class="iconbtn" data-act="close" aria-label="Schließen">✕</button></div>
     <div class="uhead"><span class="avatar" style="width:52px;height:52px;line-height:50px;font-size:17px">${avatarInner(S.me)}</span><div class="un"><b>${esc(S.me.name)}</b><small>${esc(S.me.email || '')}</small></div></div>
     <dl class="dl"><dt>Rolle</dt><dd>${esc(ROLES[S.me.role] || S.me.role)}</dd>
-      ${S.me.role === 'trainer' ? `<dt>Teams</dt><dd>${ts.map(t => esc(t.name)).join(', ') || '—'}</dd>` : ''}</dl>
+      ${TRAINER_ROLES.includes(S.me.role) ? `<dt>Teams</dt><dd>${ts.map(t => esc(t.name)).join(', ') || '—'}</dd>` : ''}</dl>
     <button class="btn ghost block" data-act="logout">Abmelden</button>
   </div>`);
 }
@@ -830,7 +830,11 @@ const H = {
   },
 };
 const CH = {
-  role: el => S.api.updateUser(el.dataset.uid, { role: el.value }).then(() => toast('Rolle gespeichert')),
+  role: el => {
+    const u = S.users.find(x => x.id === el.dataset.uid), patch = { role: el.value };
+    if (el.value === 'trainer_direct' && !(u?.teams || []).length) patch.teams = ['aktive'];
+    return S.api.updateUser(el.dataset.uid, patch).then(() => toast('Rolle gespeichert'));
+  },
   demo: el => S.api.switchTo(el.value),
 };
 document.addEventListener('click', e => {
@@ -899,7 +903,7 @@ function demoApi() {
   const W = mondayOf(todayYmd());
   const users = new Map([
     ['u_admin', { name: 'Demo-Admin', email: 'admin@demo.de', role: 'admin', teams: [] }],
-    ['u_akt', { name: 'Trainer Aktive', email: 'aktive@demo.de', role: 'trainer', teams: ['aktive'] }],
+    ['u_akt', { name: 'Trainer Aktive', email: 'aktive@demo.de', role: 'trainer_direct', teams: ['aktive'] }],
     ['u_jug', { name: 'Trainerin Jugend', email: 'jugend@demo.de', role: 'trainer', teams: ['jugend'] }],
     ['u_ah', { name: 'Trainer AH', email: 'ah@demo.de', role: 'trainer', teams: ['ah'] }],
     ['u_view', { name: 'Mitglied', email: 'mitglied@demo.de', role: 'viewer', teams: [] }],
