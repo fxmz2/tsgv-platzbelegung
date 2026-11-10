@@ -15,18 +15,16 @@ const planUrl = id => `https://www.fussball.de/ajax.club.matchplan/-/id/${id}/ma
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/api/spiele')) return spiele(url, ctx);
+    if (url.pathname === '/api/spiele') return spiele(url, ctx);
     return env.ASSETS.fetch(request);
   },
 };
 
 async function spiele(url, ctx) {
-  // Diagnose: /api/spiele/debug  bzw.  /api/spiele/raw/<0|1|2>/<offset>
-  const seg = url.pathname.split('/').filter(Boolean).slice(2);
-  const debug = seg[0] || null;
+  const debug = url.searchParams.get('debug');
   const cache = caches.default;
-  const cacheKey = new Request('https://cache.local/spiele/v2');
-  if (!debug) {
+  const cacheKey = new Request('https://cache.local/spiele/v1');
+  if (!debug && !url.searchParams.has('fresh')) {
     const hit = await cache.match(cacheKey);
     if (hit) return hit;
   }
@@ -41,10 +39,10 @@ async function spiele(url, ctx) {
     } catch (e) { errors.push(`${name}: ${e.message}`); }
   }));
   if (debug === 'raw') {
-    const name = Object.values(CLUBS)[Number(seg[1] || 0)];
+    const name = url.searchParams.get('club') || 'TSGV Rechberg';
     const html = raw[name] || '';
     const at = Math.max(0, html.search(/<tbody/i));
-    const off = Number(seg[2] || 0);
+    const off = Number(url.searchParams.get('offset') || 0);
     return new Response(html.slice(at + off, at + off + 6000), { headers: { 'content-type': 'text/plain; charset=utf-8' } });
   }
   // Doppelte (gleiche Partie aus mehreren Vereinsplänen / Verlegungen) zusammenführen
@@ -61,7 +59,7 @@ async function spiele(url, ctx) {
   const res = new Response(JSON.stringify(body), {
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${CACHE_SECONDS}` },
   });
-  if (!debug && !errors.length && home.length) ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  if (!debug && !errors.length) ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
 }
 
