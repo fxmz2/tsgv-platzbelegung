@@ -171,6 +171,11 @@ textarea{resize:vertical;min-height:0}
 .chip input:checked+span{background:var(--c,var(--accent));border-color:transparent;color:var(--ink)}
 .chip.ghost span{padding:6px 11px;font-size:13px;color:var(--muted)}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface2);border:1px solid var(--line2);border-radius:12px;padding:3px;gap:3px}
+.seg.seg2{grid-template-columns:1fr 1fr}
+.kgrp{display:flex;flex-direction:column;gap:14px}
+.ev.game{background:color-mix(in srgb,var(--c) 42%,var(--surface));border-left-width:5px;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 70%,transparent)}
+.ev.game b{color:#fff}
+.ev.game.pending{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 30%,var(--surface)) 0 6px,color-mix(in srgb,var(--c) 12%,var(--surface)) 6px 12px)}
 .seg span{display:block;text-align:center;padding:9px 4px;border-radius:9px;font:600 14px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;cursor:pointer;color:var(--muted)}
 .seg input:checked+span{background:var(--accent);color:var(--ink)}
 .check{display:flex;align-items:center;gap:10px;font-weight:600;cursor:pointer}
@@ -290,6 +295,41 @@ function findConflicts(c, bookings, blocks, excludeId) {
 const conflictLabel = c => c.kind === 'block'
   ? `Platzsperre – ${c.item.reason}`
   : `${team(c.item.team).name}${c.item.title ? ' · ' + c.item.title : ''} (${c.item.start}–${c.item.end})`;
+
+// ---------- Heimspiele ----------
+const YOUTH = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+const SMALL_FIELD = ['E', 'F', 'G'];            // Kleinfeld → nur eine Platzhälfte
+const GAME_WINDOW = { adult: [60, 120], youth: [45, 105] };  // Minuten vor / nach Anpfiff
+function gameSlot(teamId, age, kickoff, half) {
+  const youth = teamId === 'jugend', [pre, post] = youth ? GAME_WINDOW.youth : GAME_WINDOW.adult, k = toMin(kickoff);
+  return { start: fromMin(Math.max(0, k - pre)), end: fromMin(Math.min(1440, k + post)), area: youth && SMALL_FIELD.includes(age) ? (half === 'B' ? 'B' : 'A') : 'full' };
+}
+function readBooking(f) {
+  const fd = new FormData(f), g = k => String(fd.get(k) || '').trim();
+  const b = { kind: g('kind') || 'training', team: g('team'), date: g('date'), note: g('note') };
+  if (b.kind === 'game') {
+    b.opponent = g('opponent'); b.kickoff = g('kickoff'); b.ageClass = b.team === 'jugend' ? g('age') : '';
+    if (b.kickoff) Object.assign(b, gameSlot(b.team, b.ageClass, b.kickoff, g('garea')));
+    b.title = `${b.ageClass ? b.ageClass + '-Jugend · ' : ''}Heimspiel vs. ${b.opponent}`;
+    b.repeat = false;
+  } else {
+    Object.assign(b, { title: g('title'), start: g('start'), end: g('end'), area: g('area') || 'full', repeat: !!fd.get('repeat'), until: g('until') });
+  }
+  return b;
+}
+function bookingError(b) {
+  if (!b.team) return 'Bitte Mannschaft wählen';
+  if (!b.date) return 'Bitte ein Datum angeben';
+  if (b.kind === 'game') {
+    if (b.team === 'jugend' && !b.ageClass) return 'Bitte die Altersklasse wählen';
+    if (!b.opponent) return 'Bitte den Gegner angeben';
+    if (!b.kickoff) return 'Bitte die Anstoßzeit angeben';
+  } else {
+    if (!b.start || !b.end) return 'Bitte Uhrzeit angeben';
+    if (toMin(b.end) <= toMin(b.start)) return 'Ende muss nach Beginn liegen';
+  }
+  return '';
+}
 
 // ---------- state ----------
 const mq = matchMedia('(min-width: 900px)');
@@ -471,7 +511,11 @@ function colHtml(d, today, PX) {
       const off = w * Math.min(0.16 + 0.12 * k, 0.5); l += off; w -= off;
     }
     const top = (s - s0) / 60 * PX, h = Math.max((e - s) / 60 * PX - 2, 20), t = team(b.team);
-    return `<button class="ev ${b.status === 'pending' ? 'pending' : ''} ${h < 40 ? 'tight' : ''}" data-act="ev" data-id="${b.id}" style="top:${top + 1}px;height:${h}px;left:calc(${l}% + 2px);width:calc(${w}% - 4px);--c:${t.color}"><b>${esc(t.name)}${b.status === 'pending' ? ' · ausstehend' : ''}</b><span>${esc(b.title || '')}</span><time>${b.start}–${b.end}</time></button>`;
+    const game = b.kind === 'game';
+    const label = game ? `⚽ ${esc(t.name)}${b.ageClass ? ' ' + esc(b.ageClass) : ''}` : esc(t.name);
+    const sub = game ? `vs. ${esc(b.opponent || '')}` : esc(b.title || '');
+    const tm = game ? `Anstoß ${b.kickoff}` : `${b.start}–${b.end}`;
+    return `<button class="ev ${game ? 'game' : ''} ${b.status === 'pending' ? 'pending' : ''} ${h < 40 ? 'tight' : ''}" data-act="ev" data-id="${b.id}" style="top:${top + 1}px;height:${h}px;left:calc(${l}% + 2px);width:calc(${w}% - 4px);--c:${t.color}"><b>${label}${b.status === 'pending' ? ' · ausstehend' : ''}</b><span>${sub}</span><time>${tm}</time></button>`;
   }).join('');
   const blks = S.blocks.filter(k => blockOn(k, d)).map(k => {
     let [bs, be] = blockTimes(k); bs = Math.max(bs, s0); be = Math.min(be, s1);
@@ -579,13 +623,24 @@ function openBookingForm(pre = {}) {
   const t0 = teams.length === 1 ? teams[0].id : '';
   sheet(`<form id="bf" class="form" novalidate>
     <div class="sh-head"><h3>Platz buchen</h3><button type="button" class="iconbtn" data-act="close" aria-label="Schließen">✕</button></div>
+    <div class="seg seg2"><label><input type="radio" name="kind" value="training" ${pre.kind === 'game' ? '' : 'checked'}><span>Training / Termin</span></label><label><input type="radio" name="kind" value="game" ${pre.kind === 'game' ? 'checked' : ''}><span>⚽ Heimspiel</span></label></div>
     <div class="field"><span class="lbl">Mannschaft</span><div class="chips">${teams.map(t => `<label class="chip" style="--c:${t.color}"><input type="radio" name="team" value="${t.id}" ${t.id === t0 ? 'checked' : ''}><span>${esc(t.name)}</span></label>`).join('')}</div></div>
-    <label class="field"><span class="lbl">Titel</span><input name="title" maxlength="60" placeholder="z. B. Training U13, Heimspiel …"></label>
+    <div class="kgrp k-game hidden">
+      <label class="field age hidden"><span class="lbl">Altersklasse</span><select name="age"><option value="">Bitte wählen</option>${YOUTH.map(a => `<option value="${a}">${a}-Jugend${SMALL_FIELD.includes(a) ? ' (Kleinfeld)' : ''}</option>`).join('')}</select></label>
+      <label class="field"><span class="lbl">Gegner</span><input name="opponent" maxlength="60" placeholder="z. B. SV Hussenhofen"></label>
+    </div>
+    <label class="field k-training"><span class="lbl">Titel</span><input name="title" maxlength="60" placeholder="z. B. Training U13"></label>
     <label class="field"><span class="lbl">Datum</span><input type="date" name="date" value="${date}" required></label>
-    <div class="two"><label class="field"><span class="lbl">Von</span><input type="time" name="start" step="900" value="${start}" required></label><label class="field"><span class="lbl">Bis</span><input type="time" name="end" step="900" value="${end}" required></label></div>
-    <div class="field"><span class="lbl">Bereich</span><div class="seg">${['full', 'A', 'B'].map(a => `<label><input type="radio" name="area" value="${a}" ${a === 'full' ? 'checked' : ''}><span>${esc(a === 'full' ? 'Ganz' : AREA[a])}</span></label>`).join('')}</div></div>
-    <label class="check"><input type="checkbox" name="repeat"><span>Wöchentlich wiederholen</span></label>
-    <label class="field until hidden"><span class="lbl">Wiederholen bis</span><input type="date" name="until" value="${addDays(date, 7 * 8)}"></label>
+    <div class="kgrp k-game hidden">
+      <label class="field"><span class="lbl">Anstoß</span><input type="time" name="kickoff" step="300" value="${pre.kickoff || '15:00'}"></label>
+      <div class="field garea hidden"><span class="lbl">Kleinfeld auf</span><div class="seg seg2">${['A', 'B'].map(a => `<label><input type="radio" name="garea" value="${a}" ${a === 'A' ? 'checked' : ''}><span>${esc(AREA[a])}</span></label>`).join('')}</div></div>
+    </div>
+    <div class="kgrp k-training">
+      <div class="two"><label class="field"><span class="lbl">Von</span><input type="time" name="start" step="900" value="${start}"></label><label class="field"><span class="lbl">Bis</span><input type="time" name="end" step="900" value="${end}"></label></div>
+      <div class="field"><span class="lbl">Bereich</span><div class="seg">${['full', 'A', 'B'].map(a => `<label><input type="radio" name="area" value="${a}" ${a === 'full' ? 'checked' : ''}><span>${esc(a === 'full' ? 'Ganz' : AREA[a])}</span></label>`).join('')}</div></div>
+      <label class="check"><input type="checkbox" name="repeat"><span>Wöchentlich wiederholen</span></label>
+      <label class="field until hidden"><span class="lbl">Wiederholen bis</span><input type="date" name="until" value="${addDays(date, 7 * 8)}"></label>
+    </div>
     <label class="field"><span class="lbl">Notiz (optional)</span><textarea name="note" rows="2" maxlength="300"></textarea></label>
     <div class="hint" id="bfHint"></div>
     <button class="btn primary block" id="bfGo">Buchen</button>
@@ -598,13 +653,19 @@ function openBookingForm(pre = {}) {
   upd();
 }
 function bfUpdate(f) {
-  const fd = new FormData(f), tm = fd.get('team');
-  f.querySelector('.until').classList.toggle('hidden', !fd.get('repeat'));
+  const b = readBooking(f), game = b.kind === 'game';
+  f.querySelectorAll('.k-game').forEach(el => el.classList.toggle('hidden', !game));
+  f.querySelectorAll('.k-training').forEach(el => el.classList.toggle('hidden', game));
+  f.querySelector('.age').classList.toggle('hidden', b.team !== 'jugend');
+  f.querySelector('.garea').classList.toggle('hidden', !(b.team === 'jugend' && SMALL_FIELD.includes(b.ageClass)));
+  f.querySelector('.until').classList.toggle('hidden', !b.repeat);
+  f.querySelector('.sh-head h3').textContent = game ? 'Heimspiel eintragen' : 'Platz buchen';
   const direct = bookDirect();
-  $('#bfGo').textContent = !tm ? 'Buchen' : direct ? 'Verbindlich buchen' : 'Eintragen (ausstehend)';
+  $('#bfGo').textContent = !b.team ? 'Eintragen' : direct ? (game ? 'Heimspiel eintragen' : 'Verbindlich buchen') : 'Eintragen (ausstehend)';
   const msgs = [];
-  if (tm) msgs.push(direct ? `<span class="ok">✓ Wird sofort eingetragen.</span>` : `<span class="warn">Wird als „ausstehend“ eingetragen – ein Admin bestätigt.</span>`);
-  const date = fd.get('date'), start = fd.get('start'), end = fd.get('end'), area = fd.get('area');
+  if (b.team) msgs.push(direct ? `<span class="ok">✓ Wird sofort eingetragen.</span>` : `<span class="warn">Wird als „ausstehend“ eingetragen – ein Admin bestätigt.</span>`);
+  if (game && b.kickoff) msgs.push(`Platz belegt ${b.start}–${b.end} Uhr · ${esc(AREA[b.area])}`);
+  const { date, start, end, area } = b;
   if (date && start && end) {
     if (toMin(end) <= toMin(start)) msgs.push(`<span class="bad">Ende muss nach Beginn liegen.</span>`);
     else if (date >= S.weekStart && date <= addDays(S.weekStart, 6)) {
@@ -615,12 +676,10 @@ function bfUpdate(f) {
   $('#bfHint').innerHTML = msgs.join('<br>');
 }
 async function submitBooking(f) {
-  const fd = new FormData(f);
-  const tm = fd.get('team'), title = (fd.get('title') || '').trim(), date = fd.get('date'), start = fd.get('start'), end = fd.get('end');
-  const area = fd.get('area') || 'full', note = (fd.get('note') || '').trim(), repeat = !!fd.get('repeat'), until = fd.get('until');
-  if (!tm) return toast('Bitte Mannschaft wählen', 'bad');
-  if (!date || !start || !end) return toast('Bitte Datum und Uhrzeit angeben', 'bad');
-  if (toMin(end) <= toMin(start)) return toast('Ende muss nach Beginn liegen', 'bad');
+  const b = readBooking(f), err = bookingError(b);
+  if (err) return toast(err, 'bad');
+  const { team: tm, title, date, start, end, area, note, repeat, until } = b;
+  const extra = b.kind === 'game' ? { kind: 'game', opponent: b.opponent, kickoff: b.kickoff, ageClass: b.ageClass } : {};
   const dates = [date];
   if (repeat) {
     if (!until || until <= date) return toast('Bitte ein Enddatum für die Serie wählen', 'bad');
@@ -648,9 +707,9 @@ async function submitBooking(f) {
     }
   }
   const seriesId = use.length > 1 ? rid() : null;
-  await S.api.addBookings(use.map(d => ({ team: tm, title, date: d, start, end, area, note, status, seriesId, createdBy: S.me.id, createdByName: S.me.name || '', createdAt: Date.now() })));
+  await S.api.addBookings(use.map(d => ({ ...extra, team: tm, title, date: d, start, end, area, note, status, seriesId, createdBy: S.me.id, createdByName: S.me.name || '', createdAt: Date.now() })));
   closeSheet();
-  toast(status === 'confirmed' ? `✓ ${use.length > 1 ? use.length + ' Termine' : 'Termin'} eingetragen` : `Eingetragen als ausstehend – Admin bestätigt`);
+  toast(status === 'confirmed' ? `✓ ${b.kind === 'game' ? 'Heimspiel' : use.length > 1 ? use.length + ' Termine' : 'Termin'} eingetragen` : `Eingetragen als ausstehend – Admin bestätigt`);
 }
 function openBooking(id) {
   const b = lookup(id);
@@ -668,9 +727,10 @@ function openBooking(id) {
   }
   sheet(`<div class="form">
     <div class="sh-head"><div class="dt" style="--c:${t.color}"><i class="dot"></i>${esc(t.name)}</div><button class="iconbtn" data-act="close" aria-label="Schließen">✕</button></div>
-    <div><div class="big">${esc(b.title || t.name)}</div><div style="margin-top:8px">${statusBadge(b.status)}</div></div>
+    <div><div class="big">${b.kind === 'game' ? `⚽ vs. ${esc(b.opponent || '')}` : esc(b.title || t.name)}</div><div style="margin-top:8px">${statusBadge(b.status)}</div></div>
     <dl class="dl">
-      <dt>Wann</dt><dd>${esc(fmtLong(b.date))}<br>${b.start}–${b.end} Uhr</dd>
+      ${b.kind === 'game' ? `<dt>Spiel</dt><dd>Heimspiel${b.ageClass ? ` · ${esc(b.ageClass)}-Jugend` : ''}</dd><dt>Anstoß</dt><dd>${esc(fmtLong(b.date))}, ${b.kickoff} Uhr</dd><dt>Platz belegt</dt><dd>${b.start}–${b.end} Uhr</dd>`
+        : `<dt>Wann</dt><dd>${esc(fmtLong(b.date))}<br>${b.start}–${b.end} Uhr</dd>`}
       <dt>Bereich</dt><dd>${esc(AREA[b.area])}</dd>
       <dt>Von</dt><dd>${esc(b.createdByName || '?')}</dd>
       ${b.seriesId ? `<dt>Serie</dt><dd>Wöchentlicher Termin</dd>` : ''}
@@ -917,8 +977,13 @@ function demoApi() {
   const regular = [[0, 'jugend', 'U13 Training', '17:00', '18:30', 'A', 'u_jug'], [2, 'jugend', 'U13 Training', '17:00', '18:30', 'A', 'u_jug'], [0, 'jugend', 'U11 Training', '17:00', '18:15', 'B', 'u_jug'],
     [1, 'aktive', 'Training', '19:00', '20:45', 'full', 'u_akt'], [3, 'aktive', 'Training', '19:00', '20:45', 'full', 'u_akt'], [2, 'frauen', 'Training', '19:00', '20:30', 'full', 'u_admin'], [4, 'ah', 'Training', '19:30', '21:00', 'full', 'u_ah']];
   regular.forEach(([dow, ...r]) => { const sid = nid('s'); for (let w = -2; w <= 6; w++) mk(addDays(W, w * 7 + dow), ...r.slice(0, 5), 'confirmed', r[5], sid); });
-  mk(addDays(W, 5), 'aktive', 'Heimspiel', '15:00', '17:00', 'full', 'confirmed', 'u_akt');
-  mk(addDays(W, 6), 'frauen', 'Heimspiel', '13:00', '15:00', 'full', 'confirmed', 'u_admin');
+  const mkGame = (d, tm, age, opponent, kickoff, by, status = 'confirmed', half) => {
+    const id = nid('b'), slot = gameSlot(tm, age, kickoff, half);
+    bookings.set(id, { id, kind: 'game', team: tm, ageClass: age, opponent, kickoff, title: `${age ? age + '-Jugend · ' : ''}Heimspiel vs. ${opponent}`, date: addDays(W, d), ...slot, status, note: '', seriesId: null, createdBy: by, createdByName: users.get(by).name, createdAt: Date.now() });
+  };
+  mkGame(5, 'aktive', '', 'SV Hussenhofen', '15:00', 'u_akt');
+  mkGame(6, 'frauen', '', 'TSV Waldhausen', '13:00', 'u_admin');
+  mkGame(12, 'jugend', 'F', 'TV Straßdorf', '10:00', 'u_jug', 'pending', 'B');
   mk(addDays(W, 5), 'jugend', 'U9 Spieltag', '10:00', '13:00', 'full', 'pending', 'u_jug');
   const sid = nid('s'); for (let w = 0; w < 6; w++) mk(addDays(W, w * 7 + 3), 'jugend', 'U15 Training', '17:30', '19:00', 'B', 'pending', 'u_jug', sid);
   blocks.set('k1', { id: 'k1', area: 'full', dateFrom: addDays(W, 6), dateTo: addDays(W, 6), allDay: false, start: '08:00', end: '11:00', reason: 'Platzpflege', createdBy: 'u_admin', createdByName: 'Demo-Admin', createdAt: Date.now() });
