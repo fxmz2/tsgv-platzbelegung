@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// Sicherheitsregeln für die Platzbelegung.
+// In der Firebase-Konsole unter Firestore Database → Regeln komplett einfügen und "Veröffentlichen".
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ► E-Mail-Adresse(n) des ersten Admins – klein geschrieben, identisch zu CONFIG.adminEmails
+    function bootstrapAdmins() { return ['munzfelix2@gmail.com']; }
+
+    // ► Mannschaften, die ohne Freigabe buchen dürfen – identisch zu CONFIG.directBookTeams
+    function directTeams() { return ['aktive']; }
+
+    function signedIn()    { return request.auth != null; }
+    function profilePath() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function hasProfile()  { return signedIn() && exists(profilePath()); }
+    function me()          { return get(profilePath()).data; }
+    function isAdmin()     { return hasProfile() && me().role == 'admin'; }
+    function isMember()    { return hasProfile() && me().role in ['admin', 'trainer', 'viewer']; }
+    function isTrainerFor(t) { return hasProfile() && me().role == 'trainer' && t in me().teams; }
+
+    // Nutzerprofile: jeder legt sich beim ersten Login selbst als "pending" an,
+    // nur Admins vergeben Rollen und Mannschaften.
+    match /users/{uid} {
+      allow get:    if signedIn() && (request.auth.uid == uid || isMember());
+      allow list:   if isMember();
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.teams.size() == 0
+                    && (request.resource.data.role == 'pending'
+                        || (request.resource.data.role == 'admin'
+                            && request.auth.token.email_verified == true
+                            && request.auth.token.email.lower() in bootstrapAdmins()));
+      allow update: if isAdmin()
+                    || (signedIn() && request.auth.uid == uid
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photo']));
+      allow delete: if isAdmin();
+    }
+
+    // Buchungen: Mitglieder sehen alles. Trainer buchen nur für ihre Mannschaften –
+    // direkt bestätigt nur für directTeams(), sonst als Anfrage. Bestätigen/Ablehnen nur Admin.
+    match /bookings/{id} {
+      allow read:   if isMember();
+      allow create: if isAdmin() || (
+                      isTrainerFor(request.resource.data.team)
+                      && request.resource.data.createdBy == request.auth.uid
+                      && ((request.resource.data.team in directTeams() && request.resource.data.status == 'confirmed')
+                          || (!(request.resource.data.team in directTeams()) && request.resource.data.status == 'pending')));
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (isMember() && resource.data.createdBy == request.auth.uid);
+    }
+
+    // Platzsperren: nur Admins
+    match /blocks/{id} {
+      allow read:  if isMember();
+      allow write: if isAdmin();
+    }
+  }
+}

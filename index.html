@@ -1,0 +1,965 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A0E0B">
+<title>Platzbelegung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0E0B;--surface:#121813;--surface2:#1A221C;--line:#243028;--line2:#34413A;
+  --text:#F1F5F0;--muted:#8D9A91;--accent:#D7FF3F;--ink:#0A0E0B;
+  --bad:#FF5C5C;--warn:#FFB547;--ok:#4ADE80;--r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark}
+body{background:var(--bg);color:var(--text);font:15px/1.4 'Barlow',system-ui,sans-serif;min-height:100dvh;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.hidden{display:none!important}
+.muted{color:var(--muted)}.small{font-size:13px}
+
+/* ---------- header & nav ---------- */
+.top{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));background:rgba(10,14,11,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.crest{width:38px;height:38px;border-radius:10px;background:var(--accent);display:grid;place-items:center;flex:none}
+.brand b{font:400 23px/1 'Bebas Neue';letter-spacing:.04em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand small{font:600 11.5px/1 'Barlow Condensed';letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.who{display:flex;align-items:center;gap:8px;flex:none}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--line2);font:700 13px/34px 'Barlow Condensed';text-align:center;overflow:hidden;flex:none;display:inline-block}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+select.demo{background:#2A2410;border:1px solid var(--warn);color:var(--warn);border-radius:999px;padding:6px 8px;font:600 13px 'Barlow Condensed';letter-spacing:.04em;max-width:118px;min-height:0;width:auto}
+.nav{display:flex;gap:4px;padding:6px 12px;background:var(--bg);border-bottom:1px solid var(--line);max-width:1240px;margin:0 auto}
+.nav button{flex:1;padding:9px 6px;border-radius:10px;font:600 13.5px 'Barlow Condensed';letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+.nav button svg{width:22px;height:22px}
+.nav button.on{color:var(--accent);background:var(--surface)}
+.nav .nb{position:absolute;top:3px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font:700 11px/18px 'Barlow';letter-spacing:0}
+@media (max-width:899px){
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:30;border-top:1px solid var(--line);border-bottom:0;padding-bottom:max(6px,env(safe-area-inset-bottom));background:rgba(10,14,11,.96)}
+  .has-nav .main{padding-bottom:150px}
+  .has-nav .fab{bottom:calc(80px + env(safe-area-inset-bottom))}
+}
+@media (min-width:900px){.nav button{flex-direction:row;justify-content:center;gap:8px;flex:0 0 auto;padding:9px 16px}.nav button svg{width:18px;height:18px}.nav .nb{position:static}}
+
+.main{max-width:1240px;margin:0 auto;padding:14px 16px 100px}
+.h{font:400 28px/1 'Bebas Neue';letter-spacing:.04em;margin:6px 0 12px}
+section+section{margin-top:28px}
+.sechead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:12px;font:700 15px 'Barlow Condensed';letter-spacing:.08em;text-transform:uppercase;background:var(--surface2);border:1px solid var(--line2)}
+.btn.primary{background:var(--accent);color:var(--ink);border-color:transparent}
+.btn.danger{background:var(--bad);color:#fff;border-color:transparent}
+.btn.ghost{background:transparent}
+.btn.ghost.danger{color:var(--bad);background:transparent;border-color:rgba(255,92,92,.35)}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5;pointer-events:none}
+.pill{padding:7px 12px;border-radius:999px;border:1px solid var(--line2);font:600 13px 'Barlow Condensed';letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.pill.warn{color:var(--bad);border-color:rgba(255,92,92,.45)}
+.iconbtn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;border:1px solid var(--line2);font-size:20px;line-height:1;flex:none}
+.iconbtn.danger{color:var(--bad);border-color:rgba(255,92,92,.35);font-size:15px}
+.badge{background:var(--bad);color:#fff;border-radius:999px;padding:2px 9px;font:700 12px 'Barlow'}
+
+/* ---------- plan ---------- */
+.weekbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.wk{flex:1;min-width:120px;text-align:center}
+.wk b{font:400 26px/1 'Bebas Neue';letter-spacing:.05em;display:block}
+.wk span{font:600 13px 'Barlow Condensed';letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:10px}
+.strip button{padding:7px 0 6px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:1px}
+.strip small{font:600 11.5px 'Barlow Condensed';letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.strip b{font:400 22px/1 'Bebas Neue'}
+.strip .dots{display:flex;gap:2px;height:6px;margin-top:2px}
+.strip .dots i{width:6px;height:6px;border-radius:50%;background:var(--c)}
+.strip button.today b{color:var(--accent)}
+.strip button.on{background:var(--accent);border-color:var(--accent)}
+.strip button.on small,.strip button.on b{color:var(--ink)}
+.strip button.on .dots i{outline:1px solid var(--ink)}
+.dayttl{font:600 15px 'Barlow Condensed';letter-spacing:.08em;text-transform:uppercase;margin:4px 2px 8px;color:var(--muted)}
+.boardwrap{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:auto;max-height:calc(100dvh - 330px);min-height:300px;overscroll-behavior:contain}
+@media (min-width:900px){.boardwrap{max-height:calc(100dvh - 200px)}}
+.board{display:grid;min-width:100%}
+.gutter .gh,.colhead{height:var(--hh);position:sticky;top:0;z-index:8;background:var(--surface);border-bottom:1px solid var(--line)}
+.hrs{position:relative;height:var(--h)}
+.hrs span{position:absolute;right:6px;font:600 12px 'Barlow Condensed';color:var(--muted)}
+.col{border-left:1px solid var(--line);min-width:0}
+.colhead{display:flex;flex-direction:column;justify-content:flex-end}
+.dname{display:flex;align-items:baseline;gap:6px;padding:6px 8px 0;font:600 13px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.dname b{font:400 21px/1 'Bebas Neue';color:var(--text)}
+.is-today .dname,.is-today .dname b{color:var(--accent)}
+.lanes{display:grid;grid-template-columns:1fr 1fr;font:600 10.5px 'Barlow Condensed';letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:center;padding:2px 0 5px}
+.lanes span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{position:relative;height:var(--h);background:repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px var(--px))}
+.track::after{content:'';position:absolute;top:0;bottom:0;left:50%;border-left:1px dashed var(--line2);pointer-events:none}
+.is-today .track{background-color:rgba(215,255,63,.025)}
+.ev{position:absolute;z-index:2;border-radius:8px;padding:4px 6px;text-align:left;overflow:hidden;display:flex;flex-direction:column;gap:1px;font-size:12px;line-height:1.15;
+  background:color-mix(in srgb,var(--c) 24%,var(--surface));border-left:3px solid var(--c)}
+.ev b{font:700 11.5px/1.1 'Barlow Condensed';text-transform:uppercase;letter-spacing:.06em;color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev span{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev time{font:600 11.5px 'Barlow Condensed';color:var(--muted);letter-spacing:.04em}
+.ev.tight{flex-direction:row;align-items:center;gap:6px}.ev.tight time,.ev.tight span{display:none}
+.ev.pending{z-index:3;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 16%,var(--surface)) 0 6px,color-mix(in srgb,var(--c) 6%,var(--surface)) 6px 12px);border:1.5px dashed var(--c);box-shadow:0 2px 10px rgba(0,0,0,.35)}
+.ev.block{z-index:4;--c:var(--bad);background:repeating-linear-gradient(45deg,rgba(255,92,92,.3) 0 6px,rgba(255,92,92,.1) 6px 12px);border:1px solid rgba(255,92,92,.6);border-radius:6px}
+.ev.block span{color:#FFD0D0}
+.now{position:absolute;left:0;right:0;height:2px;background:var(--accent);z-index:6;pointer-events:none}
+.now::before{content:'';position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font:600 13px 'Barlow Condensed';letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:3px;background:var(--c)}
+.legend i.p{background:transparent;border:1.5px dashed var(--muted)}
+.legend i.k{background:repeating-linear-gradient(45deg,rgba(255,92,92,.7) 0 3px,rgba(255,92,92,.2) 3px 6px)}
+.fab{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:25;background:var(--accent);color:var(--ink);border-radius:999px;padding:14px 22px;font:400 21px/1 'Bebas Neue';letter-spacing:.08em;box-shadow:0 8px 24px rgba(0,0,0,.5),0 0 0 4px rgba(215,255,63,.12)}
+
+/* ---------- cards & lists ---------- */
+.list{display:flex;flex-direction:column;gap:8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:12px;text-align:left;width:100%}
+.card.stack{flex-direction:column;align-items:stretch}
+.crow{display:flex;gap:12px;align-items:stretch}
+.bar{width:4px;border-radius:4px;background:var(--c);flex:none;align-self:stretch}
+.cb{flex:1;min-width:0}
+.ct{font-weight:600}.ct b{font:700 14px 'Barlow Condensed';letter-spacing:.08em;text-transform:uppercase;color:var(--c);margin-right:4px}
+.cm{color:var(--muted);font-size:13.5px;margin-top:2px}
+.cact{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px}
+.cact .btn{padding:9px 14px;font-size:14px}
+.card.rejected{opacity:.55}
+.st{flex:none;font:700 11.5px 'Barlow Condensed';letter-spacing:.1em;text-transform:uppercase;padding:4px 9px;border-radius:999px;display:inline-block}
+.st-confirmed{background:rgba(74,222,128,.14);color:var(--ok)}
+.st-pending{background:rgba(255,181,71,.14);color:var(--warn)}
+.st-rejected{background:rgba(255,92,92,.14);color:var(--bad)}
+.empty{text-align:center;padding:40px 16px;border:1px dashed var(--line2);border-radius:var(--r);color:var(--muted)}
+.empty b{display:block;font:400 22px 'Bebas Neue';letter-spacing:.05em;color:var(--text);margin-bottom:4px}
+.ucard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.ucard.new{border-color:var(--warn);box-shadow:inset 3px 0 0 var(--warn)}
+.uhead{display:flex;align-items:center;gap:10px;min-width:0}
+.un{min-width:0}.un b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.un small{color:var(--muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.urow{display:flex;gap:8px}
+.urow select{flex:1}
+.tchips{display:flex;flex-wrap:wrap;gap:6px}
+.tchip{padding:7px 12px;border-radius:999px;border:1px solid var(--line2);font:600 13.5px 'Barlow Condensed';letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tchip.on{background:var(--c);border-color:var(--c);color:var(--ink)}
+
+/* ---------- sheet / dialog / forms ---------- */
+.sheet,.dlg{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.6)}
+.dlg{z-index:60;align-items:center;padding:20px}
+.sheet-card{width:100%;max-width:560px;max-height:92dvh;overflow:auto;background:var(--surface);border:1px solid var(--line2);border-radius:20px 20px 0 0;padding:16px 18px calc(20px + env(safe-area-inset-bottom));animation:up .2s ease}
+@media (min-width:640px){.sheet{align-items:center}.sheet-card{border-radius:20px}}
+@keyframes up{from{transform:translateY(30px);opacity:.4}}
+.dlg-card{width:100%;max-width:420px;background:var(--surface2);border:1px solid var(--line2);border-radius:18px;padding:18px}
+.dlg-card h3{font:400 24px 'Bebas Neue';letter-spacing:.04em;margin-bottom:6px}
+.dlg-card p{color:var(--muted);margin-bottom:14px;white-space:pre-line}
+.dlg-btns{display:flex;flex-direction:column;gap:8px}
+.form{display:flex;flex-direction:column;gap:14px}
+.sh-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sh-head h3{font:400 28px/1 'Bebas Neue';letter-spacing:.04em}
+.big{font:400 30px/1.05 'Bebas Neue';letter-spacing:.03em}
+.field{display:flex;flex-direction:column;gap:6px}
+.lbl{font:600 12.5px 'Barlow Condensed';letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+input[type=text],input:not([type]),input[type=date],input[type=time],select,textarea{width:100%;background:var(--surface2);border:1px solid var(--line2);border-radius:10px;padding:11px 12px;font-size:16px;outline:none;min-height:46px}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{position:relative}
+.chip input,.seg input{position:absolute;opacity:0;pointer-events:none}
+.chip span{display:inline-flex;padding:9px 14px;border-radius:999px;border:1px solid var(--line2);font:600 14.5px 'Barlow Condensed';letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.chip input:checked+span{background:var(--c,var(--accent));border-color:transparent;color:var(--ink)}
+.chip.ghost span{padding:6px 11px;font-size:13px;color:var(--muted)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface2);border:1px solid var(--line2);border-radius:12px;padding:3px;gap:3px}
+.seg span{display:block;text-align:center;padding:9px 4px;border-radius:9px;font:600 14px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;cursor:pointer;color:var(--muted)}
+.seg input:checked+span{background:var(--accent);color:var(--ink)}
+.check{display:flex;align-items:center;gap:10px;font-weight:600;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+.hint{font-size:14px;line-height:1.5;min-height:1px}
+.hint .ok,.ok{color:var(--ok)}.hint .warn,.warn{color:var(--warn)}.hint .bad,.bad{color:var(--bad)}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:15px}
+.dl dt{font:600 12.5px/1.6 'Barlow Condensed';letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.dt{display:flex;align-items:center;gap:8px;font:700 15px 'Barlow Condensed';letter-spacing:.1em;text-transform:uppercase;color:var(--c)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.acts{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translate(-50%,-140%);z-index:80;background:var(--surface2);border:1px solid var(--line2);padding:11px 16px;border-radius:12px;font-weight:600;max-width:calc(100% - 32px);transition:transform .25s;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.toast.show{transform:translate(-50%,0)}
+.toast.bad{border-color:var(--bad);color:#FFD0D0}
+
+/* ---------- login / waiting ---------- */
+.gate{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;text-align:center;gap:18px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(215,255,63,.08),transparent 60%)}
+.gate .pitch{width:min(280px,70vw);opacity:.9}
+.gate h1{font:400 clamp(44px,12vw,72px)/.9 'Bebas Neue';letter-spacing:.03em}
+.gate h1 em{font-style:normal;color:var(--accent)}
+.gate p{color:var(--muted);max-width:380px}
+.gbtn{display:inline-flex;align-items:center;gap:10px;background:#fff;color:#1f1f1f;border-radius:12px;padding:13px 20px;font:600 16px 'Barlow'}
+.gbtn svg{width:20px;height:20px}
+.demo-note{border:1px solid rgba(255,181,71,.4);background:rgba(255,181,71,.07);color:var(--warn);border-radius:12px;padding:10px 14px;font-size:14px;max-width:380px}
+.spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--line2);border-top-color:var(--accent);animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app"><div class="gate"><div class="spin"></div></div></div>
+<div id="sheet" class="sheet hidden"><div class="sheet-card" id="sheetCard"></div></div>
+<div id="dlg" class="dlg hidden"></div>
+<div id="toast" class="toast"></div>
+
+<script type="module">
+/* =====================================================================
+   KONFIGURATION – hier anpassen
+   ===================================================================== */
+const CONFIG = {
+  clubName: 'TSGV Rechberg',
+  appName: 'Platzbelegung',
+  // Wer sich mit einer dieser Google-Adressen zum ersten Mal anmeldet, wird automatisch Admin.
+  // Muss identisch in firestore.rules → bootstrapAdmins() stehen.
+  adminEmails: ['munzfelix2@gmail.com'],
+  // Namen der Platzhälften (z. B. 'Vereinsheim', 'Straße')
+  halves: { A: 'Hälfte A', B: 'Hälfte B' },
+  // Sichtbarer Zeitraum im Plan (volle Stunden)
+  dayStart: 8,
+  dayEnd: 23,
+  // Diese Mannschaften buchen ohne Freigabe. Muss zu firestore.rules → directTeams() passen.
+  directBookTeams: ['aktive'],
+  teams: [
+    { id: 'aktive', name: 'Aktive', color: '#FF5A4E' },
+    { id: 'jugend', name: 'Jugend', color: '#3DDC97' },
+    { id: 'ah',     name: 'AH',     color: '#FFB547' },
+    { id: 'frauen', name: 'Frauen', color: '#B48CFF' },
+  ],
+  // Leer lassen = Demo-Modus. Werte aus der Firebase-Konsole einfügen (siehe README).
+  firebase: {
+    apiKey: 'AIzaSyD3y7RgOPtQm3MGAhJwXGMXf6D_CpYWWOs',
+    authDomain: 'tsgv-aa0c1.firebaseapp.com',
+    projectId: 'tsgv-aa0c1',
+    storageBucket: 'tsgv-aa0c1.firebasestorage.app',
+    messagingSenderId: '65530234635',
+    appId: '1:65530234635:web:84af57583c96e0da28440e',
+  },
+};
+/* ===================================================================== */
+
+const FIREBASE_VERSION = '10.12.2';
+
+// ---------- helpers ----------
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return ymd(d); };
+const todayYmd = () => ymd(new Date());
+const dowIdx = s => (parse(s).getDay() + 6) % 7;
+const mondayOf = s => addDays(s, -dowIdx(s));
+const isoWeek = s => { const d = parse(s); d.setDate(d.getDate() + 3 - dowIdx(s)); const w1 = new Date(d.getFullYear(), 0, 4); return 1 + Math.round(((d - w1) / 864e5 - 3 + ((w1.getDay() + 6) % 7)) / 7); };
+const toMin = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+const fromMin = m => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const fmtDate = s => { const d = parse(s); return `${DAYS[dowIdx(s)]} ${d.getDate()}.${d.getMonth() + 1}.`; };
+const fmtLong = s => parse(s).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+const fmtRange = (a, b) => { const A = parse(a), B = parse(b); return A.getMonth() === B.getMonth() ? `${A.getDate()}.–${B.getDate()}. ${MONTHS[B.getMonth()]}` : `${A.getDate()}. ${MONTHS[A.getMonth()].slice(0,3)} – ${B.getDate()}. ${MONTHS[B.getMonth()].slice(0,3)}`; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+const team = id => CONFIG.teams.find(t => t.id === id) || { id, name: id || '—', color: '#888' };
+const AREA = { full: 'Ganzer Platz', A: CONFIG.halves.A, B: CONFIG.halves.B };
+const ROLES = { pending: 'Wartet auf Freigabe', viewer: 'Mitglied · nur sehen', trainer: 'Trainer · buchen', admin: 'Admin · alles' };
+const STATUS = { confirmed: 'Bestätigt', pending: 'Anfrage offen', rejected: 'Abgelehnt' };
+const initials = n => (n || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+const byTime = (a, b) => (a.date + a.start).localeCompare(b.date + b.start);
+
+// ---------- conflict logic ----------
+const halvesClash = (a, b) => a === 'full' || b === 'full' || a === b;
+const timeClash = (s1, e1, s2, e2) => s1 < e2 && s2 < e1;
+const blockOn = (k, d) => k.dateFrom <= d && d <= k.dateTo;
+const blockTimes = k => k.allDay ? [0, 1440] : [toMin(k.start), toMin(k.end)];
+function findConflicts(c, bookings, blocks, excludeId) {
+  const s = toMin(c.start), e = toMin(c.end), out = [];
+  for (const b of bookings) {
+    if (b.id === excludeId || b.status !== 'confirmed' || b.date !== c.date) continue;
+    if (halvesClash(b.area, c.area) && timeClash(s, e, toMin(b.start), toMin(b.end))) out.push({ kind: 'booking', item: b });
+  }
+  for (const k of blocks) {
+    if (!blockOn(k, c.date)) continue;
+    const [bs, be] = blockTimes(k);
+    if (halvesClash(k.area, c.area) && timeClash(s, e, bs, be)) out.push({ kind: 'block', item: k });
+  }
+  return out;
+}
+const conflictLabel = c => c.kind === 'block'
+  ? `Platzsperre – ${c.item.reason}`
+  : `${team(c.item.team).name}${c.item.title ? ' · ' + c.item.title : ''} (${c.item.start}–${c.item.end})`;
+
+// ---------- state ----------
+const mq = matchMedia('(min-width: 900px)');
+const S = {
+  api: null, demo: false, booting: true,
+  authUser: null, me: null,
+  view: 'plan',
+  weekStart: mondayOf(todayYmd()), selDate: todayYmd(),
+  bookings: [], blocks: [], pending: [], mine: [], users: [],
+  unsub: {}, weekKey: null,
+  wide: mq.matches, px: 56, boardScroll: null,
+};
+mq.addEventListener('change', e => { S.wide = e.matches; S.boardScroll = null; render(); });
+
+const isAdmin = () => S.me?.role === 'admin';
+const isMember = () => ['admin', 'trainer', 'viewer'].includes(S.me?.role);
+const bookableTeams = () => isAdmin() ? CONFIG.teams.map(t => t.id) : S.me?.role === 'trainer' ? (S.me.teams || []).filter(id => CONFIG.teams.some(t => t.id === id)) : [];
+const canBook = () => bookableTeams().length > 0;
+const lookup = id => S.bookings.find(b => b.id === id) || S.pending.find(b => b.id === id) || S.mine.find(b => b.id === id);
+
+// ---------- subscriptions ----------
+function toggleSub(key, on, start, clear) {
+  if (on && !S.unsub[key]) S.unsub[key] = start() || (() => {});
+  else if (!on && S.unsub[key]) { S.unsub[key](); S.unsub[key] = null; clear(); }
+}
+function syncSubs() {
+  const m = isMember(), a = isAdmin();
+  if (m && S.weekKey !== S.weekStart) {
+    S.unsub.week?.();
+    S.weekKey = S.weekStart;
+    S.unsub.week = S.api.subBookings(S.weekStart, addDays(S.weekStart, 6), l => { S.bookings = l; render(); });
+  } else if (!m && S.unsub.week) { S.unsub.week(); S.unsub.week = null; S.weekKey = null; S.bookings = []; }
+  toggleSub('blocks', m, () => S.api.subBlocks(l => { S.blocks = l; render(); }), () => S.blocks = []);
+  toggleSub('mine', m, () => S.api.subMine(S.me.id, l => { S.mine = l; render(); }), () => S.mine = []);
+  toggleSub('pending', a, () => S.api.subPending(l => { S.pending = l; render(); }), () => S.pending = []);
+  toggleSub('users', a, () => S.api.subUsers(l => { S.users = l; render(); }), () => S.users = []);
+}
+function stopAll() {
+  Object.values(S.unsub).forEach(f => f && f());
+  S.unsub = {}; S.weekKey = null;
+  S.bookings = []; S.blocks = []; S.pending = []; S.mine = []; S.users = [];
+}
+async function onAuth(u) {
+  stopAll(); closeSheet();
+  S.authUser = u; S.me = null; S.boardScroll = null; S.view = 'plan';
+  render();
+  if (!u) return;
+  try { await S.api.ensureProfile(u); } catch (e) { reportErr(e); }
+  S.unsub.me = S.api.subUser(u.uid, p => {
+    S.me = p || { id: u.uid, name: u.name, email: u.email, photo: u.photo, role: 'pending', teams: [] };
+    syncSubs(); render();
+  });
+}
+
+// ---------- rendering ----------
+let raf = 0;
+function render() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; doRender(); }); }
+function doRender() {
+  const app = $('#app');
+  const w = app.querySelector('.boardwrap');
+  if (w) S.boardScroll = w.scrollTop;
+  document.body.classList.toggle('has-nav', false);
+  if (S.booting) app.innerHTML = `<div class="gate"><div class="spin"></div></div>`;
+  else if (!S.authUser) app.innerHTML = loginHtml();
+  else if (!S.me) app.innerHTML = `<div class="gate"><div class="spin"></div></div>`;
+  else if (!isMember()) app.innerHTML = waitingHtml();
+  else app.innerHTML = shellHtml();
+  const nw = app.querySelector('.boardwrap');
+  if (nw) nw.scrollTop = S.boardScroll ?? (S.wide ? 0 : Math.max(0, (Math.min(15, CONFIG.dayEnd - 3) - CONFIG.dayStart) * S.px));
+}
+
+const pitchSvg = `<svg class="pitch" viewBox="0 0 300 190" fill="none" stroke="#D7FF3F" stroke-width="2"><rect x="4" y="4" width="292" height="182" rx="4"/><line x1="150" y1="4" x2="150" y2="186"/><circle cx="150" cy="95" r="26"/><circle cx="150" cy="95" r="2.5" fill="#D7FF3F"/><rect x="4" y="50" width="42" height="90"/><rect x="254" y="50" width="42" height="90"/><rect x="4" y="74" width="14" height="42"/><rect x="282" y="74" width="14" height="42"/></svg>`;
+const gIcon = `<svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>`;
+
+function loginHtml() {
+  return `<div class="gate">
+    ${pitchSvg}
+    <h1>${esc(CONFIG.clubName)}<br><em>${esc(CONFIG.appName)}</em></h1>
+    <p>Wer ist wann auf dem Platz? Aktive, Jugend, AH und Frauen – alles in einem Plan.</p>
+    ${S.demo
+      ? `<button class="btn primary" data-act="login">Demo ansehen</button>
+         <div class="demo-note">Demo-Modus: Firebase ist noch nicht eingerichtet. Daten liegen nur im Browser und sind nach dem Neuladen weg. Anleitung: README.</div>`
+      : `<button class="gbtn" data-act="login">${gIcon}Mit Google anmelden</button>`}
+  </div>`;
+}
+function waitingHtml() {
+  return `<div class="gate">
+    ${pitchSvg}
+    <h1>Fast<br><em>geschafft</em></h1>
+    <p>Hallo ${esc(S.me.name)}, dein Zugang ist angelegt und wartet auf Freischaltung. Ein Admin ordnet dir Rolle und Mannschaft zu – danach geht's hier automatisch weiter.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      ${S.demo ? demoSwitch() : ''}
+      <button class="btn ghost" data-act="logout">Abmelden</button>
+    </div>
+  </div>`;
+}
+function demoSwitch() {
+  return `<select class="demo" data-chg="demo" aria-label="Demo-Rolle wechseln">${S.api.demoUsers().map(u => `<option value="${u.id}" ${u.id === S.authUser?.uid ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>`;
+}
+const avatarInner = u => u?.photo ? `<img src="${esc(u.photo)}" alt="" referrerpolicy="no-referrer">` : esc(initials(u?.name));
+
+const ICONS = {
+  plan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>',
+  mine: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.5"/><circle cx="4.5" cy="12" r="1.5"/><circle cx="4.5" cy="18" r="1.5"/></svg>',
+  requests: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg>',
+  admin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M19 8v6M16 11h6"/></svg>',
+};
+function tabs() {
+  const t = [['plan', 'Belegung']];
+  if (canBook()) t.push(['mine', 'Meine']);
+  if (isAdmin()) t.push(['requests', 'Anfragen'], ['admin', 'Admin']);
+  return t;
+}
+function shellHtml() {
+  const T = tabs();
+  if (!T.some(([k]) => k === S.view)) S.view = 'plan';
+  const pendingUsers = S.users.filter(u => u.role === 'pending').length;
+  const badge = { requests: new Set(S.pending.map(p => p.seriesId || p.id)).size, admin: pendingUsers };
+  document.body.classList.toggle('has-nav', T.length > 1);
+  const view = { plan: planHtml, mine: mineHtml, requests: requestsHtml, admin: adminHtml }[S.view]();
+  return `
+  <header class="top">
+    <div class="brand"><span class="crest"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0A0E0B" stroke-width="2.2"><rect x="2" y="5" width="20" height="14" rx="1.5"/><path d="M12 5v14"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <div style="min-width:0"><b>${esc(CONFIG.clubName)}</b><small>${esc(CONFIG.appName)}</small></div></div>
+    <div class="who">${S.demo ? demoSwitch() : ''}<button class="avatar" data-act="menu" aria-label="Konto">${avatarInner(S.me)}</button></div>
+  </header>
+  ${T.length > 1 ? `<nav class="nav">${T.map(([k, l]) => `<button class="${S.view === k ? 'on' : ''}" data-act="tab" data-v="${k}">${ICONS[k]}<span>${l}</span>${badge[k] ? `<i class="nb">${badge[k]}</i>` : ''}</button>`).join('')}</nav>` : ''}
+  <main class="main">${view}</main>
+  ${canBook() && (S.view === 'plan' || S.view === 'mine') ? `<button class="fab" data-act="newBooking">+ Buchen</button>` : ''}`;
+}
+
+// ----- plan -----
+function planHtml() {
+  const days = [...Array(7)].map((_, i) => addDays(S.weekStart, i));
+  if (!days.includes(S.selDate)) S.selDate = days[0];
+  const today = todayYmd();
+  const shown = S.wide ? days : [S.selDate];
+  const PX = S.px = S.wide ? 40 : 60;
+  const H = CONFIG.dayEnd - CONFIG.dayStart;
+  const hh = S.wide ? 56 : 26;
+  const hours = [...Array(H)].map((_, i) => `<span style="top:${i * PX + 3}px">${pad(CONFIG.dayStart + i)}</span>`).join('');
+  return `
+  <div class="weekbar">
+    <button class="iconbtn" data-act="week" data-n="-1" aria-label="Vorherige Woche">‹</button>
+    <div class="wk"><b>KW ${isoWeek(S.weekStart)}</b><span>${fmtRange(days[0], days[6])}</span></div>
+    <button class="iconbtn" data-act="week" data-n="1" aria-label="Nächste Woche">›</button>
+    <button class="pill" data-act="today">Heute</button>
+    ${isAdmin() ? `<button class="pill warn" data-act="newBlock">Sperren</button>` : ''}
+  </div>
+  ${S.wide ? '' : stripHtml(days, today)}
+  ${S.wide ? '' : `<div class="dayttl">${fmtLong(S.selDate)}</div>`}
+  <div class="boardwrap"><div class="board" style="--h:${H * PX}px;--px:${PX}px;--hh:${hh}px;grid-template-columns:40px repeat(${shown.length},minmax(0,1fr))">
+    <div class="gutter"><div class="gh"></div><div class="hrs">${hours}</div></div>
+    ${shown.map(d => colHtml(d, today, PX)).join('')}
+  </div></div>
+  <div class="legend">${CONFIG.teams.map(t => `<span><i style="--c:${t.color}"></i>${esc(t.name)}</span>`).join('')}<span><i class="p"></i>Anfrage</span><span><i class="k"></i>Gesperrt</span></div>`;
+}
+function stripHtml(days, today) {
+  return `<div class="strip">${days.map((d, i) => {
+    const teams = [...new Set(S.bookings.filter(b => b.date === d && b.status !== 'rejected').map(b => b.team))];
+    const blocked = S.blocks.some(k => blockOn(k, d));
+    const dots = teams.slice(0, 4).map(t => `<i style="--c:${team(t).color}"></i>`).join('') + (blocked ? `<i style="--c:var(--bad)"></i>` : '');
+    return `<button data-act="day" data-d="${d}" class="${d === S.selDate ? 'on' : ''} ${d === today ? 'today' : ''}"><small>${DAYS[i]}</small><b>${parse(d).getDate()}</b><span class="dots">${dots}</span></button>`;
+  }).join('')}</div>`;
+}
+const laneLW = a => a === 'A' ? [0, 50] : a === 'B' ? [50, 50] : [0, 100];
+function colHtml(d, today, PX) {
+  const s0 = CONFIG.dayStart * 60, s1 = CONFIG.dayEnd * 60;
+  const bks = S.bookings.filter(b => b.date === d && b.status !== 'rejected').sort(byTime);
+  const pend = bks.filter(b => b.status === 'pending');
+  const evs = bks.map(b => {
+    const s = Math.max(toMin(b.start), s0), e = Math.min(toMin(b.end), s1);
+    if (e <= s) return '';
+    let [l, w] = laneLW(b.area);
+    if (b.status === 'pending') {
+      const k = pend.slice(0, pend.indexOf(b)).filter(q => halvesClash(q.area, b.area) && timeClash(toMin(q.start), toMin(q.end), toMin(b.start), toMin(b.end))).length;
+      const off = w * Math.min(0.16 + 0.12 * k, 0.5); l += off; w -= off;
+    }
+    const top = (s - s0) / 60 * PX, h = Math.max((e - s) / 60 * PX - 2, 20), t = team(b.team);
+    return `<button class="ev ${b.status === 'pending' ? 'pending' : ''} ${h < 40 ? 'tight' : ''}" data-act="ev" data-id="${b.id}" style="top:${top + 1}px;height:${h}px;left:calc(${l}% + 2px);width:calc(${w}% - 4px);--c:${t.color}"><b>${esc(t.name)}${b.status === 'pending' ? ' · ?' : ''}</b><span>${esc(b.title || '')}</span><time>${b.start}–${b.end}</time></button>`;
+  }).join('');
+  const blks = S.blocks.filter(k => blockOn(k, d)).map(k => {
+    let [bs, be] = blockTimes(k); bs = Math.max(bs, s0); be = Math.min(be, s1);
+    if (be <= bs) return '';
+    const [l, w] = laneLW(k.area), top = (bs - s0) / 60 * PX, h = Math.max((be - bs) / 60 * PX - 2, 20);
+    return `<button class="ev block ${h < 40 ? 'tight' : ''}" data-act="blk" data-id="${k.id}" style="top:${top + 1}px;height:${h}px;left:calc(${l}% + 1px);width:calc(${w}% - 2px)"><b>Gesperrt</b><span>${esc(k.reason)}</span></button>`;
+  }).join('');
+  let now = '';
+  if (d === today) { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); if (m >= s0 && m <= s1) now = `<div class="now" style="top:${(m - s0) / 60 * PX}px"></div>`; }
+  return `<div class="col ${d === today ? 'is-today' : ''}">
+    <div class="colhead">${S.wide ? `<div class="dname"><span>${DAYS[dowIdx(d)]}</span><b>${parse(d).getDate()}.</b></div>` : ''}<div class="lanes"><span>${esc(CONFIG.halves.A)}</span><span>${esc(CONFIG.halves.B)}</span></div></div>
+    <div class="track" data-act="track" data-d="${d}">${evs}${blks}${now}</div>
+  </div>`;
+}
+
+// ----- lists -----
+const statusBadge = s => `<span class="st st-${s}">${STATUS[s] || s}</span>`;
+const emptyHtml = (t, s) => `<div class="empty"><b>${t}</b>${s}</div>`;
+function cardHtml(b) {
+  const t = team(b.team);
+  return `<button class="card ${b.status === 'rejected' ? 'rejected' : ''}" data-act="ev" data-id="${b.id}" style="--c:${t.color}"><i class="bar"></i>
+    <div class="cb"><div class="ct"><b>${esc(t.name)}</b>${esc(b.title || '')}</div><div class="cm">${fmtDate(b.date)} · ${b.start}–${b.end} · ${esc(AREA[b.area])}</div></div>${statusBadge(b.status)}</button>`;
+}
+function mineHtml() {
+  const t = todayYmd();
+  const list = S.mine.filter(b => b.date >= t).sort(byTime);
+  return `<h2 class="h">Meine Buchungen</h2>${list.length ? `<div class="list">${list.map(cardHtml).join('')}</div>` : emptyHtml('Noch nichts gebucht', 'Tippe auf „+ Buchen“ oder direkt auf eine freie Zeit im Plan.')}`;
+}
+function pendingGroups() {
+  const g = new Map();
+  for (const p of [...S.pending].sort(byTime)) { const k = p.seriesId || p.id; if (!g.has(k)) g.set(k, []); g.get(k).push(p); }
+  return [...g.values()];
+}
+const groupItems = k => S.pending.filter(p => (p.seriesId || p.id) === k);
+function requestsHtml() {
+  const groups = pendingGroups();
+  if (!groups.length) return `<h2 class="h">Offene Anfragen</h2>${emptyHtml('Alles erledigt', 'Keine offenen Anfragen.')}`;
+  return `<h2 class="h">Offene Anfragen</h2><div class="list">${groups.map(g => {
+    const b = g[0], t = team(b.team), k = b.seriesId || b.id;
+    const when = g.length > 1 ? `Serie · ${g.length} Termine · ${fmtDate(b.date)} bis ${fmtDate(g.at(-1).date)}` : fmtDate(b.date);
+    return `<div class="card stack" style="--c:${t.color}"><div class="crow"><i class="bar"></i><div class="cb">
+      <div class="ct"><b>${esc(t.name)}</b>${esc(b.title || '')}</div>
+      <div class="cm">${when} · ${b.start}–${b.end} · ${esc(AREA[b.area])}</div>
+      <div class="cm">von ${esc(b.createdByName || '?')}${b.note ? ` · „${esc(b.note)}“` : ''}</div></div></div>
+      <div class="cact"><button class="btn ghost" data-act="ev" data-id="${b.id}">Details</button><button class="btn ghost danger" data-act="rejectGroup" data-k="${k}">Ablehnen</button><button class="btn primary" data-act="approveGroup" data-k="${k}">Bestätigen</button></div></div>`;
+  }).join('')}</div>`;
+}
+function adminHtml() {
+  const users = [...S.users].sort((a, b) => (a.role === 'pending' ? 0 : 1) - (b.role === 'pending' ? 0 : 1) || (a.name || '').localeCompare(b.name || ''));
+  const newN = users.filter(u => u.role === 'pending').length;
+  const blocks = S.blocks.filter(k => k.dateTo >= todayYmd()).sort((a, b) => a.dateFrom.localeCompare(b.dateFrom));
+  return `
+  <section>
+    <div class="sechead"><h2 class="h">Nutzer & Rollen</h2>${newN ? `<span class="badge">${newN} neu</span>` : ''}</div>
+    <p class="muted small" style="margin:-4px 0 12px">Neue Personen melden sich mit Google an und tauchen hier auf. Rolle wählen – bei Trainern die Mannschaften antippen.</p>
+    <div class="list">${users.map(userCard).join('') || emptyHtml('Noch niemand da', '')}</div>
+  </section>
+  <section>
+    <div class="sechead"><h2 class="h">Platzsperren</h2><button class="pill warn" data-act="newBlock">+ Sperren</button></div>
+    ${blocks.length ? `<div class="list">${blocks.map(k => `<button class="card" data-act="blk" data-id="${k.id}" style="--c:var(--bad)"><i class="bar"></i><div class="cb"><div class="ct">${esc(k.reason)}</div><div class="cm">${k.dateFrom === k.dateTo ? fmtDate(k.dateFrom) : `${fmtDate(k.dateFrom)} – ${fmtDate(k.dateTo)}`} · ${k.allDay ? 'ganztägig' : `${k.start}–${k.end}`} · ${esc(AREA[k.area])}</div></div></button>`).join('')}</div>`
+      : emptyHtml('Keine Sperren', 'Der Platz ist frei bespielbar.')}
+  </section>`;
+}
+function userCard(u) {
+  const self = u.id === S.me.id, ts = u.teams || [];
+  return `<div class="ucard ${u.role === 'pending' ? 'new' : ''}">
+    <div class="uhead"><span class="avatar">${avatarInner(u)}</span><div class="un"><b>${esc(u.name)}${self ? ' (du)' : ''}</b><small>${esc(u.email || '')}</small></div></div>
+    <div class="urow"><select data-chg="role" data-uid="${u.id}" ${self ? 'disabled' : ''} aria-label="Rolle">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+      ${self ? '' : `<button class="iconbtn danger" data-act="udel" data-uid="${u.id}" aria-label="Zugang entfernen">✕</button>`}</div>
+    ${u.role === 'trainer' ? `<div class="tchips">${CONFIG.teams.map(t => `<button class="tchip ${ts.includes(t.id) ? 'on' : ''}" style="--c:${t.color}" data-act="uteam" data-uid="${u.id}" data-team="${t.id}">${esc(t.name)}</button>`).join('')}</div>
+      ${ts.length ? '' : `<div class="hint warn">Noch keine Mannschaft zugeordnet – kann nichts buchen.</div>`}` : ''}
+  </div>`;
+}
+
+// ---------- sheet, dialog, toast ----------
+function sheet(html) { $('#sheetCard').innerHTML = html; $('#sheet').classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+function closeSheet() { $('#sheet').classList.add('hidden'); $('#sheetCard').innerHTML = ''; document.body.style.overflow = ''; }
+$('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
+function ask(title, text, buttons) {
+  return new Promise(res => {
+    const d = $('#dlg');
+    d.innerHTML = `<div class="dlg-card"><h3>${esc(title)}</h3><p>${esc(text)}</p><div class="dlg-btns">${buttons.filter(Boolean).map(([v, l, c]) => `<button class="btn ${c || ''}" data-v="${v}">${esc(l)}</button>`).join('')}</div></div>`;
+    d.classList.remove('hidden');
+    d.onclick = e => { const b = e.target.closest('[data-v]'); if (b || e.target === d) { d.classList.add('hidden'); d.onclick = null; res(b ? b.dataset.v : null); } };
+  });
+}
+let toastT;
+function toast(msg, kind = '') { const t = $('#toast'); t.textContent = msg; t.className = `toast show ${kind}`; clearTimeout(toastT); toastT = setTimeout(() => t.className = 'toast', 3200); }
+function reportErr(e) {
+  console.error(e);
+  const c = e?.code || '';
+  const msg = c.includes('permission-denied') ? 'Keine Berechtigung für diese Aktion.'
+    : c === 'auth/unauthorized-domain' ? 'Diese Adresse ist in Firebase nicht freigegeben (Authentication → Settings → Authorized domains).'
+    : c.includes('unavailable') ? 'Keine Verbindung – bitte später erneut versuchen.'
+    : (e?.message || String(e));
+  toast(msg, 'bad');
+}
+
+// ---------- booking ----------
+function openBookingForm(pre = {}) {
+  const teams = bookableTeams().map(team);
+  const date = pre.date || S.selDate || todayYmd();
+  const start = pre.start || '17:00';
+  const end = fromMin(Math.min(toMin(start) + 90, CONFIG.dayEnd * 60));
+  const t0 = teams.length === 1 ? teams[0].id : '';
+  sheet(`<form id="bf" class="form" novalidate>
+    <div class="sh-head"><h3>Platz buchen</h3><button type="button" class="iconbtn" data-act="close" aria-label="Schließen">✕</button></div>
+    <div class="field"><span class="lbl">Mannschaft</span><div class="chips">${teams.map(t => `<label class="chip" style="--c:${t.color}"><input type="radio" name="team" value="${t.id}" ${t.id === t0 ? 'checked' : ''}><span>${esc(t.name)}</span></label>`).join('')}</div></div>
+    <label class="field"><span class="lbl">Titel</span><input name="title" maxlength="60" placeholder="z. B. Training U13, Heimspiel …"></label>
+    <label class="field"><span class="lbl">Datum</span><input type="date" name="date" value="${date}" required></label>
+    <div class="two"><label class="field"><span class="lbl">Von</span><input type="time" name="start" step="900" value="${start}" required></label><label class="field"><span class="lbl">Bis</span><input type="time" name="end" step="900" value="${end}" required></label></div>
+    <div class="field"><span class="lbl">Bereich</span><div class="seg">${['full', 'A', 'B'].map(a => `<label><input type="radio" name="area" value="${a}" ${a === 'full' ? 'checked' : ''}><span>${esc(a === 'full' ? 'Ganz' : AREA[a])}</span></label>`).join('')}</div></div>
+    <label class="check"><input type="checkbox" name="repeat"><span>Wöchentlich wiederholen</span></label>
+    <label class="field until hidden"><span class="lbl">Wiederholen bis</span><input type="date" name="until" value="${addDays(date, 7 * 8)}"></label>
+    <label class="field"><span class="lbl">Notiz (optional)</span><textarea name="note" rows="2" maxlength="300"></textarea></label>
+    <div class="hint" id="bfHint"></div>
+    <button class="btn primary block" id="bfGo">Buchen</button>
+    ${isAdmin() ? `<button type="button" class="btn ghost block" data-act="newBlock" data-date="${date}">Stattdessen Platz sperren</button>` : ''}
+  </form>`);
+  const f = $('#bf');
+  const upd = () => bfUpdate(f);
+  f.addEventListener('input', upd); f.addEventListener('change', upd);
+  f.addEventListener('submit', e => { e.preventDefault(); submitBooking(f).catch(reportErr).finally(() => { const b = $('#bfGo'); if (b) b.disabled = false; }); });
+  upd();
+}
+function bfUpdate(f) {
+  const fd = new FormData(f), tm = fd.get('team');
+  f.querySelector('.until').classList.toggle('hidden', !fd.get('repeat'));
+  const direct = isAdmin() || CONFIG.directBookTeams.includes(tm);
+  $('#bfGo').textContent = !tm ? 'Buchen' : direct ? 'Verbindlich buchen' : 'Anfrage senden';
+  const msgs = [];
+  if (tm) msgs.push(direct ? `<span class="ok">✓ Wird sofort eingetragen.</span>` : `<span class="warn">Geht als Anfrage raus – ein Admin bestätigt.</span>`);
+  const date = fd.get('date'), start = fd.get('start'), end = fd.get('end'), area = fd.get('area');
+  if (date && start && end) {
+    if (toMin(end) <= toMin(start)) msgs.push(`<span class="bad">Ende muss nach Beginn liegen.</span>`);
+    else if (date >= S.weekStart && date <= addDays(S.weekStart, 6)) {
+      const c = findConflicts({ date, start, end, area }, S.bookings, S.blocks);
+      if (c.length) msgs.push(`<span class="bad">⚠ Belegt: ${esc(conflictLabel(c[0]))}</span>`);
+    }
+  }
+  $('#bfHint').innerHTML = msgs.join('<br>');
+}
+async function submitBooking(f) {
+  const fd = new FormData(f);
+  const tm = fd.get('team'), title = (fd.get('title') || '').trim(), date = fd.get('date'), start = fd.get('start'), end = fd.get('end');
+  const area = fd.get('area') || 'full', note = (fd.get('note') || '').trim(), repeat = !!fd.get('repeat'), until = fd.get('until');
+  if (!tm) return toast('Bitte Mannschaft wählen', 'bad');
+  if (!date || !start || !end) return toast('Bitte Datum und Uhrzeit angeben', 'bad');
+  if (toMin(end) <= toMin(start)) return toast('Ende muss nach Beginn liegen', 'bad');
+  const dates = [date];
+  if (repeat) {
+    if (!until || until <= date) return toast('Bitte ein Enddatum für die Serie wählen', 'bad');
+    for (let d = addDays(date, 7); d <= until && dates.length < 60; d = addDays(d, 7)) dates.push(d);
+  }
+  $('#bfGo').disabled = true;
+  const admin = isAdmin();
+  const status = admin || CONFIG.directBookTeams.includes(tm) ? 'confirmed' : 'pending';
+  const existing = await S.api.getBookings(dates[0], dates.at(-1));
+  const clash = dates.filter(d => findConflicts({ date: d, start, end, area }, existing, S.blocks).length);
+  let use = dates;
+  if (clash.length) {
+    const first = findConflicts({ date: clash[0], start, end, area }, existing, S.blocks)[0];
+    const info = `${fmtDate(clash[0])}: ${conflictLabel(first)}${clash.length > 1 ? ` (+${clash.length - 1} weitere)` : ''}`;
+    if (admin) {
+      const c = await ask('Überschneidung', `${clash.length} von ${dates.length} Termin(en) sind belegt.\n${info}`,
+        [['force', 'Trotzdem eintragen', 'danger'], dates.length > clash.length && ['skip', 'Nur freie Termine', 'primary'], ['cancel', 'Abbrechen', 'ghost']]);
+      if (!c || c === 'cancel') return;
+      if (c === 'skip') use = dates.filter(d => !clash.includes(d));
+    } else {
+      if (clash.length === dates.length) { await ask('Zeit ist belegt', info, [['ok', 'OK', 'primary']]); return; }
+      const c = await ask('Teilweise belegt', `${clash.length} Termin(e) sind belegt und werden übersprungen.\n${info}`, [['skip', `${dates.length - clash.length} freie Termine buchen`, 'primary'], ['cancel', 'Abbrechen', 'ghost']]);
+      if (c !== 'skip') return;
+      use = dates.filter(d => !clash.includes(d));
+    }
+  }
+  const seriesId = use.length > 1 ? rid() : null;
+  await S.api.addBookings(use.map(d => ({ team: tm, title, date: d, start, end, area, note, status, seriesId, createdBy: S.me.id, createdByName: S.me.name || '', createdAt: Date.now() })));
+  closeSheet();
+  toast(status === 'confirmed' ? `✓ ${use.length > 1 ? use.length + ' Termine' : 'Termin'} eingetragen` : `Anfrage gesendet – Admin bestätigt`);
+}
+function openBooking(id) {
+  const b = lookup(id);
+  if (!b) return toast('Buchung nicht gefunden', 'bad');
+  const t = team(b.team), own = b.createdBy === S.me.id, a = isAdmin();
+  const acts = [];
+  if (a && b.status === 'pending') {
+    acts.push(`<button class="btn primary block" data-act="approve" data-id="${b.id}">Bestätigen</button>`);
+    if (b.seriesId && groupItems(b.seriesId).length > 1) acts.push(`<button class="btn block" data-act="approveGroup" data-k="${b.seriesId}">Ganze Serie bestätigen (${groupItems(b.seriesId).length})</button>`);
+    acts.push(`<button class="btn ghost danger block" data-act="reject" data-id="${b.id}">Ablehnen</button>`);
+  }
+  if (a || own) {
+    acts.push(`<button class="btn ghost danger block" data-act="del" data-id="${b.id}">${b.status === 'pending' && own ? 'Anfrage zurückziehen' : 'Termin löschen'}</button>`);
+    if (b.seriesId) acts.push(`<button class="btn ghost danger block" data-act="delSeries" data-id="${b.id}">Diesen & alle folgenden löschen</button>`);
+  }
+  sheet(`<div class="form">
+    <div class="sh-head"><div class="dt" style="--c:${t.color}"><i class="dot"></i>${esc(t.name)}</div><button class="iconbtn" data-act="close" aria-label="Schließen">✕</button></div>
+    <div><div class="big">${esc(b.title || t.name)}</div><div style="margin-top:8px">${statusBadge(b.status)}</div></div>
+    <dl class="dl">
+      <dt>Wann</dt><dd>${esc(fmtLong(b.date))}<br>${b.start}–${b.end} Uhr</dd>
+      <dt>Bereich</dt><dd>${esc(AREA[b.area])}</dd>
+      <dt>Von</dt><dd>${esc(b.createdByName || '?')}</dd>
+      ${b.seriesId ? `<dt>Serie</dt><dd>Wöchentlicher Termin</dd>` : ''}
+      ${b.note ? `<dt>Notiz</dt><dd>${esc(b.note)}</dd>` : ''}
+      ${b.rejectReason ? `<dt>Grund</dt><dd class="bad">${esc(b.rejectReason)}</dd>` : ''}
+    </dl>
+    ${acts.length ? `<div class="acts">${acts.join('')}</div>` : ''}
+  </div>`);
+}
+async function approve(items) {
+  items = items.filter(Boolean);
+  if (!items.length) return;
+  const dates = items.map(i => i.date).sort();
+  const existing = await S.api.getBookings(dates[0], dates.at(-1));
+  const bad = items.filter(i => findConflicts(i, existing, S.blocks, i.id).length);
+  let ok = items;
+  if (bad.length) {
+    const c0 = findConflicts(bad[0], existing, S.blocks, bad[0].id)[0];
+    const c = await ask('Überschneidung', `${bad.length} von ${items.length} Termin(en) kollidieren.\n${fmtDate(bad[0].date)}: ${conflictLabel(c0)}`,
+      [['force', 'Trotzdem bestätigen', 'danger'], bad.length < items.length && ['free', 'Nur freie bestätigen', 'primary'], ['cancel', 'Abbrechen', 'ghost']]);
+    if (!c || c === 'cancel') return;
+    if (c === 'free') ok = items.filter(i => !bad.includes(i));
+  }
+  await S.api.updateBookings(ok.map(i => i.id), { status: 'confirmed', decidedBy: S.me.name || '', decidedAt: Date.now() });
+  closeSheet();
+  toast(`✓ ${ok.length} Termin(e) bestätigt`);
+}
+async function reject(items) {
+  items = items.filter(Boolean);
+  if (!items.length) return;
+  const c = await ask('Anfrage ablehnen?', items.length > 1 ? `${items.length} Termine der Serie werden abgelehnt.` : `${fmtDate(items[0].date)} · ${items[0].start}–${items[0].end}`, [['yes', 'Ablehnen', 'danger'], ['no', 'Abbrechen', 'ghost']]);
+  if (c !== 'yes') return;
+  await S.api.updateBookings(items.map(i => i.id), { status: 'rejected', decidedBy: S.me.name || '', decidedAt: Date.now() });
+  closeSheet();
+  toast('Anfrage abgelehnt');
+}
+async function delBooking(id, series) {
+  const b = lookup(id);
+  if (!b) return;
+  let ids = [b.id];
+  if (series && b.seriesId) {
+    const all = await S.api.getSeries(b.seriesId);
+    ids = all.filter(x => x.date >= b.date && (isAdmin() || x.createdBy === S.me.id)).map(x => x.id);
+  }
+  const c = await ask(ids.length > 1 ? `${ids.length} Termine löschen?` : 'Termin löschen?', 'Das lässt sich nicht rückgängig machen.', [['yes', 'Löschen', 'danger'], ['no', 'Abbrechen', 'ghost']]);
+  if (c !== 'yes') return;
+  await S.api.deleteBookings(ids);
+  closeSheet();
+  toast('Gelöscht');
+}
+
+// ---------- blocks ----------
+const REASONS = ['Platzpflege', 'Unbespielbar (Nässe)', 'Frost / Schnee', 'Veranstaltung', 'Turnier'];
+function openBlockForm(pre = {}) {
+  const d = pre.date || S.selDate || todayYmd();
+  sheet(`<form id="kf" class="form" novalidate>
+    <div class="sh-head"><h3>Platz sperren</h3><button type="button" class="iconbtn" data-act="close" aria-label="Schließen">✕</button></div>
+    <div class="field"><span class="lbl">Bereich</span><div class="seg">${['full', 'A', 'B'].map(a => `<label><input type="radio" name="area" value="${a}" ${a === 'full' ? 'checked' : ''}><span>${esc(a === 'full' ? 'Ganz' : AREA[a])}</span></label>`).join('')}</div></div>
+    <div class="two"><label class="field"><span class="lbl">Von</span><input type="date" name="from" value="${d}"></label><label class="field"><span class="lbl">Bis</span><input type="date" name="to" value="${d}"></label></div>
+    <label class="check"><input type="checkbox" name="allDay" checked><span>Ganztägig</span></label>
+    <div class="two times hidden"><label class="field"><span class="lbl">Ab</span><input type="time" name="start" step="900" value="08:00"></label><label class="field"><span class="lbl">Bis</span><input type="time" name="end" step="900" value="12:00"></label></div>
+    <label class="field"><span class="lbl">Grund</span><input name="reason" maxlength="60" placeholder="z. B. Platzpflege"></label>
+    <div class="chips">${REASONS.map(r => `<button type="button" class="chip ghost" data-act="reason" data-r="${esc(r)}"><span>${esc(r)}</span></button>`).join('')}</div>
+    <button class="btn danger block" id="kfGo">Sperre eintragen</button>
+  </form>`);
+  const f = $('#kf');
+  f.addEventListener('change', () => f.querySelector('.times').classList.toggle('hidden', f.allDay.checked));
+  f.addEventListener('submit', e => { e.preventDefault(); submitBlock(f).catch(reportErr).finally(() => { const b = $('#kfGo'); if (b) b.disabled = false; }); });
+}
+async function submitBlock(f) {
+  const fd = new FormData(f);
+  const area = fd.get('area') || 'full', from = fd.get('from'), to = fd.get('to') || from, allDay = !!fd.get('allDay');
+  const start = fd.get('start'), end = fd.get('end'), reason = (fd.get('reason') || '').trim();
+  if (!from || to < from) return toast('Bitte gültigen Zeitraum wählen', 'bad');
+  if (!reason) return toast('Bitte einen Grund angeben', 'bad');
+  if (!allDay && toMin(end) <= toMin(start)) return toast('Ende muss nach Beginn liegen', 'bad');
+  $('#kfGo').disabled = true;
+  const k = { area, dateFrom: from, dateTo: to, allDay, start: allDay ? '' : start, end: allDay ? '' : end, reason, createdBy: S.me.id, createdByName: S.me.name || '', createdAt: Date.now() };
+  await S.api.addBlock(k);
+  closeSheet();
+  const hit = (await S.api.getBookings(from, to)).filter(b => b.status !== 'rejected' && findConflicts(b, [], [k]).length);
+  if (!hit.length) return toast('Platz gesperrt');
+  const c = await ask(`${hit.length} Buchung(en) betroffen`,
+    hit.slice(0, 4).map(b => `${fmtDate(b.date)} ${b.start} · ${team(b.team).name}${b.title ? ' – ' + b.title : ''}`).join('\n') + (hit.length > 4 ? `\n+${hit.length - 4} weitere` : '') + '\n\nAbsagen? Die Trainer sehen es dann unter „Meine“ als abgelehnt.',
+    [['cancel', 'Buchungen absagen', 'danger'], ['keep', 'Behalten', 'ghost']]);
+  if (c === 'cancel') { await S.api.updateBookings(hit.map(b => b.id), { status: 'rejected', rejectReason: `Platzsperre: ${reason}`, decidedBy: S.me.name || '', decidedAt: Date.now() }); toast(`${hit.length} Buchung(en) abgesagt`); }
+  else toast('Platz gesperrt');
+}
+function openBlock(id) {
+  const k = S.blocks.find(x => x.id === id);
+  if (!k) return;
+  sheet(`<div class="form">
+    <div class="sh-head"><div class="dt" style="--c:var(--bad)"><i class="dot"></i>Platzsperre</div><button class="iconbtn" data-act="close" aria-label="Schließen">✕</button></div>
+    <div class="big">${esc(k.reason)}</div>
+    <dl class="dl">
+      <dt>Zeitraum</dt><dd>${k.dateFrom === k.dateTo ? esc(fmtLong(k.dateFrom)) : `${esc(fmtDate(k.dateFrom))} – ${esc(fmtDate(k.dateTo))}`}</dd>
+      <dt>Uhrzeit</dt><dd>${k.allDay ? 'ganztägig' : `${k.start}–${k.end} Uhr`}</dd>
+      <dt>Bereich</dt><dd>${esc(AREA[k.area])}</dd>
+      <dt>Von</dt><dd>${esc(k.createdByName || '?')}</dd>
+    </dl>
+    ${isAdmin() ? `<div class="acts"><button class="btn ghost danger block" data-act="blkDel" data-id="${k.id}">Sperre aufheben</button></div>` : ''}
+  </div>`);
+}
+
+// ---------- account menu ----------
+function openMenu() {
+  const ts = (S.me.teams || []).map(team);
+  sheet(`<div class="form">
+    <div class="sh-head"><h3>Konto</h3><button class="iconbtn" data-act="close" aria-label="Schließen">✕</button></div>
+    <div class="uhead"><span class="avatar" style="width:52px;height:52px;line-height:50px;font-size:17px">${avatarInner(S.me)}</span><div class="un"><b>${esc(S.me.name)}</b><small>${esc(S.me.email || '')}</small></div></div>
+    <dl class="dl"><dt>Rolle</dt><dd>${esc(ROLES[S.me.role] || S.me.role)}</dd>
+      ${S.me.role === 'trainer' ? `<dt>Teams</dt><dd>${ts.map(t => esc(t.name)).join(', ') || '—'}</dd>` : ''}</dl>
+    <button class="btn ghost block" data-act="logout">Abmelden</button>
+  </div>`);
+}
+
+// ---------- event delegation ----------
+const H = {
+  close: closeSheet,
+  login: () => S.api.signIn(),
+  logout: () => { closeSheet(); return S.api.signOut(); },
+  menu: openMenu,
+  tab: el => { S.view = el.dataset.v; S.boardScroll = null; render(); window.scrollTo(0, 0); },
+  week: el => { const n = +el.dataset.n; S.weekStart = addDays(S.weekStart, 7 * n); S.selDate = addDays(S.selDate, 7 * n); syncSubs(); render(); },
+  today: () => { const t = todayYmd(); S.weekStart = mondayOf(t); S.selDate = t; S.boardScroll = null; syncSubs(); render(); },
+  day: el => { S.selDate = el.dataset.d; render(); },
+  track: (el, e) => {
+    if (!canBook()) return;
+    const r = el.getBoundingClientRect();
+    const m = CONFIG.dayStart * 60 + Math.floor((e.clientY - r.top) / S.px * 2) * 30;
+    openBookingForm({ date: el.dataset.d, start: fromMin(Math.max(CONFIG.dayStart * 60, Math.min(m, CONFIG.dayEnd * 60 - 60))) });
+  },
+  ev: el => openBooking(el.dataset.id),
+  blk: el => openBlock(el.dataset.id),
+  newBooking: () => openBookingForm(),
+  newBlock: el => openBlockForm({ date: el.dataset.date }),
+  reason: el => { const i = $('#kf input[name=reason]'); if (i) i.value = el.dataset.r; },
+  approve: el => approve([lookup(el.dataset.id)]),
+  reject: el => reject([lookup(el.dataset.id)]),
+  approveGroup: el => approve(groupItems(el.dataset.k)),
+  rejectGroup: el => reject(groupItems(el.dataset.k)),
+  del: el => delBooking(el.dataset.id, false),
+  delSeries: el => delBooking(el.dataset.id, true),
+  blkDel: async el => {
+    if (await ask('Sperre aufheben?', 'Der Platz ist danach wieder buchbar.', [['yes', 'Aufheben', 'danger'], ['no', 'Abbrechen', 'ghost']]) !== 'yes') return;
+    await S.api.deleteBlock(el.dataset.id); closeSheet(); toast('Sperre aufgehoben');
+  },
+  uteam: el => {
+    const u = S.users.find(x => x.id === el.dataset.uid); if (!u) return;
+    const t = el.dataset.team, cur = u.teams || [];
+    return S.api.updateUser(u.id, { teams: cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t] });
+  },
+  udel: async el => {
+    const u = S.users.find(x => x.id === el.dataset.uid); if (!u) return;
+    if (await ask('Zugang entfernen?', `${u.name} verliert alle Rechte. Meldet sich die Person erneut an, landet sie wieder bei „Wartet auf Freigabe“.`, [['yes', 'Entfernen', 'danger'], ['no', 'Abbrechen', 'ghost']]) !== 'yes') return;
+    await S.api.deleteUser(u.id); toast('Zugang entfernt');
+  },
+};
+const CH = {
+  role: el => S.api.updateUser(el.dataset.uid, { role: el.value }).then(() => toast('Rolle gespeichert')),
+  demo: el => S.api.switchTo(el.value),
+};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el || !H[el.dataset.act]) return;
+  e.preventDefault();
+  Promise.resolve().then(() => H[el.dataset.act](el, e)).catch(reportErr);
+});
+document.addEventListener('change', e => {
+  const el = e.target.closest('[data-chg]');
+  if (el && CH[el.dataset.chg]) Promise.resolve().then(() => CH[el.dataset.chg](el)).catch(reportErr);
+});
+
+// ---------- Firebase backend ----------
+async function firebaseApi() {
+  const B = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
+  const [A, Au, F] = await Promise.all([import(B + 'firebase-app.js'), import(B + 'firebase-auth.js'), import(B + 'firebase-firestore.js')]);
+  const app = A.initializeApp(CONFIG.firebase);
+  const auth = Au.getAuth(app);
+  const db = F.getFirestore(app);
+  const col = n => F.collection(db, n);
+  const rows = s => s.docs.map(d => ({ id: d.id, ...d.data() }));
+  const live = (q, cb) => F.onSnapshot(q, s => cb(rows(s)), e => { if (isMember()) reportErr(e); });
+  const chunks = (arr, n = 400) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
+  const batchEach = async (items, fn) => { for (const part of chunks(items)) { const b = F.writeBatch(db); part.forEach(x => fn(b, x)); await b.commit(); } };
+  const admins = CONFIG.adminEmails.map(x => x.toLowerCase());
+  Au.getRedirectResult(auth).catch(reportErr);
+  return {
+    onAuth: cb => Au.onAuthStateChanged(auth, u => cb(u ? { uid: u.uid, name: u.displayName || u.email, email: (u.email || '').toLowerCase(), photo: u.photoURL || '' } : null)),
+    async signIn() {
+      const p = new Au.GoogleAuthProvider();
+      p.setCustomParameters({ prompt: 'select_account' });
+      try { await Au.signInWithPopup(auth, p); }
+      catch (e) {
+        if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'].includes(e.code)) await Au.signInWithRedirect(auth, p);
+        else if (!['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(e.code)) throw e;
+      }
+    },
+    signOut: () => Au.signOut(auth),
+    async ensureProfile(u) {
+      const ref = F.doc(db, 'users', u.uid);
+      const snap = await F.getDoc(ref);
+      if (!snap.exists()) await F.setDoc(ref, { name: u.name, email: u.email, photo: u.photo, role: admins.includes(u.email) ? 'admin' : 'pending', teams: [], createdAt: Date.now() });
+      else if (snap.data().name !== u.name || snap.data().photo !== u.photo) await F.updateDoc(ref, { name: u.name, photo: u.photo }).catch(() => {});
+    },
+    subUser: (uid, cb) => F.onSnapshot(F.doc(db, 'users', uid), s => cb(s.exists() ? { id: s.id, ...s.data() } : null), reportErr),
+    subUsers: cb => live(col('users'), cb),
+    subBookings: (from, to, cb) => live(F.query(col('bookings'), F.where('date', '>=', from), F.where('date', '<=', to)), cb),
+    subPending: cb => live(F.query(col('bookings'), F.where('status', '==', 'pending')), cb),
+    subMine: (uid, cb) => live(F.query(col('bookings'), F.where('createdBy', '==', uid)), cb),
+    subBlocks: cb => live(col('blocks'), cb),
+    getBookings: async (from, to) => rows(await F.getDocs(F.query(col('bookings'), F.where('date', '>=', from), F.where('date', '<=', to)))),
+    getSeries: async sid => rows(await F.getDocs(F.query(col('bookings'), F.where('seriesId', '==', sid)))),
+    addBookings: list => batchEach(list, (b, x) => b.set(F.doc(col('bookings')), x)),
+    updateBookings: (ids, patch) => batchEach(ids, (b, id) => b.update(F.doc(db, 'bookings', id), patch)),
+    deleteBookings: ids => batchEach(ids, (b, id) => b.delete(F.doc(db, 'bookings', id))),
+    addBlock: k => F.addDoc(col('blocks'), k),
+    deleteBlock: id => F.deleteDoc(F.doc(db, 'blocks', id)),
+    updateUser: (uid, p) => F.updateDoc(F.doc(db, 'users', uid), p),
+    deleteUser: uid => F.deleteDoc(F.doc(db, 'users', uid)),
+  };
+}
+
+// ---------- Demo backend (in-memory) ----------
+function demoApi() {
+  const W = mondayOf(todayYmd());
+  const users = new Map([
+    ['u_admin', { name: 'Demo-Admin', email: 'admin@demo.de', role: 'admin', teams: [] }],
+    ['u_akt', { name: 'Trainer Aktive', email: 'aktive@demo.de', role: 'trainer', teams: ['aktive'] }],
+    ['u_jug', { name: 'Trainerin Jugend', email: 'jugend@demo.de', role: 'trainer', teams: ['jugend'] }],
+    ['u_ah', { name: 'Trainer AH', email: 'ah@demo.de', role: 'trainer', teams: ['ah'] }],
+    ['u_view', { name: 'Mitglied', email: 'mitglied@demo.de', role: 'viewer', teams: [] }],
+    ['u_new', { name: 'Neue Person', email: 'neu@demo.de', role: 'pending', teams: [] }],
+  ].map(([id, u]) => [id, { id, photo: '', ...u }]));
+  const bookings = new Map(), blocks = new Map();
+  let n = 0; const nid = p => p + (++n);
+  const mk = (date, tm, title, start, end, area, status, by, seriesId = null) => {
+    const id = nid('b'); bookings.set(id, { id, team: tm, title, date, start, end, area, status, note: '', seriesId, createdBy: by, createdByName: users.get(by).name, createdAt: Date.now() });
+  };
+  const regular = [[0, 'jugend', 'U13 Training', '17:00', '18:30', 'A', 'u_jug'], [2, 'jugend', 'U13 Training', '17:00', '18:30', 'A', 'u_jug'], [0, 'jugend', 'U11 Training', '17:00', '18:15', 'B', 'u_jug'],
+    [1, 'aktive', 'Training', '19:00', '20:45', 'full', 'u_akt'], [3, 'aktive', 'Training', '19:00', '20:45', 'full', 'u_akt'], [2, 'frauen', 'Training', '19:00', '20:30', 'full', 'u_admin'], [4, 'ah', 'Training', '19:30', '21:00', 'full', 'u_ah']];
+  regular.forEach(([dow, ...r]) => { const sid = nid('s'); for (let w = -2; w <= 6; w++) mk(addDays(W, w * 7 + dow), ...r.slice(0, 5), 'confirmed', r[5], sid); });
+  mk(addDays(W, 5), 'aktive', 'Heimspiel', '15:00', '17:00', 'full', 'confirmed', 'u_akt');
+  mk(addDays(W, 6), 'frauen', 'Heimspiel', '13:00', '15:00', 'full', 'confirmed', 'u_admin');
+  mk(addDays(W, 5), 'jugend', 'U9 Spieltag', '10:00', '13:00', 'full', 'pending', 'u_jug');
+  const sid = nid('s'); for (let w = 0; w < 6; w++) mk(addDays(W, w * 7 + 3), 'jugend', 'U15 Training', '17:30', '19:00', 'B', 'pending', 'u_jug', sid);
+  blocks.set('k1', { id: 'k1', area: 'full', dateFrom: addDays(W, 6), dateTo: addDays(W, 6), allDay: false, start: '08:00', end: '11:00', reason: 'Platzpflege', createdBy: 'u_admin', createdByName: 'Demo-Admin', createdAt: Date.now() });
+
+  const subs = new Set();
+  const emit = () => [...subs].forEach(f => f());
+  const sub = fn => { subs.add(fn); fn(); return () => subs.delete(fn); };
+  const copy = m => [...m.values()].map(x => ({ ...x, teams: x.teams ? [...x.teams] : x.teams }));
+  let authCb = () => {}, cur = null;
+  const asAuth = u => u ? { uid: u.id, name: u.name, email: u.email, photo: '' } : null;
+  const later = fn => new Promise(r => setTimeout(() => { fn(); emit(); r(); }, 120));
+  return {
+    demoUsers: () => [...users.values()],
+    onAuth: cb => { authCb = cb; setTimeout(() => cb(cur), 0); return () => {}; },
+    signIn: async () => { cur = users.get('u_admin'); authCb(asAuth(cur)); },
+    signOut: async () => { cur = null; authCb(null); },
+    switchTo: uid => { cur = users.get(uid) || null; authCb(asAuth(cur)); },
+    ensureProfile: async () => {},
+    subUser: (uid, cb) => sub(() => cb(users.has(uid) ? { ...users.get(uid), teams: [...users.get(uid).teams] } : null)),
+    subUsers: cb => sub(() => cb(copy(users))),
+    subBookings: (f, t, cb) => sub(() => cb(copy(bookings).filter(b => b.date >= f && b.date <= t))),
+    subPending: cb => sub(() => cb(copy(bookings).filter(b => b.status === 'pending'))),
+    subMine: (uid, cb) => sub(() => cb(copy(bookings).filter(b => b.createdBy === uid))),
+    subBlocks: cb => sub(() => cb(copy(blocks))),
+    getBookings: async (f, t) => copy(bookings).filter(b => b.date >= f && b.date <= t),
+    getSeries: async s => copy(bookings).filter(b => b.seriesId === s),
+    addBookings: list => later(() => list.forEach(x => { const id = nid('b'); bookings.set(id, { ...x, id }); })),
+    updateBookings: (ids, p) => later(() => ids.forEach(id => bookings.has(id) && Object.assign(bookings.get(id), p))),
+    deleteBookings: ids => later(() => ids.forEach(id => bookings.delete(id))),
+    addBlock: k => later(() => { const id = nid('k'); blocks.set(id, { ...k, id }); }),
+    deleteBlock: id => later(() => blocks.delete(id)),
+    updateUser: (uid, p) => later(() => users.has(uid) && Object.assign(users.get(uid), p)),
+    deleteUser: uid => later(() => { const u = users.get(uid); if (u) { u.role = 'pending'; u.teams = []; } }),
+  };
+}
+
+// ---------- boot ----------
+(async () => {
+  S.demo = !CONFIG.firebase.apiKey;
+  try { S.api = S.demo ? demoApi() : await firebaseApi(); }
+  catch (e) {
+    console.error(e);
+    $('#app').innerHTML = `<div class="gate"><h1>Keine<br><em>Verbindung</em></h1><p>Firebase konnte nicht geladen werden. Internetverbindung prüfen und neu laden.</p><button class="btn primary" onclick="location.reload()">Neu laden</button></div>`;
+    return;
+  }
+  S.booting = false;
+  S.api.onAuth(onAuth);
+  render();
+  setInterval(() => { if (S.view === 'plan' && isMember()) render(); }, 60000);
+})();
+</script>
+</body>
+</html>
